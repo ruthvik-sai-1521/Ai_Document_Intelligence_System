@@ -45,10 +45,10 @@ class DocumentProcessor:
             return list(pages)[0]
         return sorted(list(pages))
 
-    def smart_chunking(self, pages: List[Dict[str, Any]], source_id: str) -> List[Dict[str, Any]]:
+    def smart_chunking(self, pages: List[Dict[str, Any]], source_id: str, user_id: str = None) -> List[Dict[str, Any]]:
         """
         Dynamically chunk text (400-800 words), preserving paragraphs and sentences.
-        Adds source and page_number metadata.
+        Adds source, page_number, and user_id metadata.
         """
         chunks = []
         current_chunk_text = []
@@ -58,12 +58,16 @@ class DocumentProcessor:
         def save_chunk():
             nonlocal current_chunk_text, current_length, current_pages
             if current_chunk_text:
+                meta = {
+                    "source": source_id,
+                    "page_number": self.format_page_numbers(current_pages)
+                }
+                if user_id:
+                    meta["user_id"] = user_id
+                    
                 chunks.append({
                     "text": " ".join(current_chunk_text),
-                    "metadata": {
-                        "source": source_id,
-                        "page_number": self.format_page_numbers(current_pages)
-                    }
+                    "metadata": meta
                 })
                 current_chunk_text = []
                 current_length = 0
@@ -123,7 +127,7 @@ class DocumentProcessor:
         logger.info(f"Chunked {source_id} into {len(chunks)} chunks.")
         return chunks
 
-    def process_document(self, file_path: str) -> List[Dict[str, Any]]:
+    def process_document(self, file_path: str, user_id: str = None) -> List[Dict[str, Any]]:
         """Process a single document from extraction to chunking."""
         path = Path(file_path)
         pages = []
@@ -138,14 +142,14 @@ class DocumentProcessor:
             logger.error(f"Unsupported file type: {path.suffix}")
             raise ValueError(f"Unsupported file type: {path.suffix}")
             
-        chunks = self.smart_chunking(pages, source_id=path.name)
+        chunks = self.smart_chunking(pages, source_id=path.name, user_id=user_id)
         return chunks
 
-    def process_documents(self, file_paths: List[str]) -> List[Dict[str, Any]]:
+    def process_documents(self, file_paths: List[str], user_id: str = None) -> List[Dict[str, Any]]:
         """Process multiple documents and combine chunks."""
         all_chunks = []
         for path in file_paths:
             logger.info(f"Processing document: {path}")
-            chunks = self.process_document(path)
+            chunks = self.process_document(path, user_id=user_id)
             all_chunks.extend(chunks)
         return all_chunks

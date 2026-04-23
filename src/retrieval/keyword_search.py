@@ -50,8 +50,28 @@ class KeywordSearch:
         self.bm25 = BM25Okapi(tokenized_corpus)
         self.save()
 
-    def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Search the BM25 index for the most relevant chunks."""
+    def remove_document(self, filename: str):
+        """Remove all chunks associated with a specific filename and rebuild the BM25 index."""
+        if not self.chunks:
+            return
+
+        initial_count = len(self.chunks)
+        self.chunks = [c for c in self.chunks if c.get('metadata', {}).get('source') != filename]
+        
+        removed_count = initial_count - len(self.chunks)
+        if removed_count > 0:
+            logger.info(f"Removing {removed_count} chunks for {filename} from BM25 and rebuilding...")
+            if not self.chunks:
+                self.bm25 = None
+            else:
+                tokenized_corpus = [self._tokenize(chunk['text']) for chunk in self.chunks]
+                self.bm25 = BM25Okapi(tokenized_corpus)
+            self.save()
+        else:
+            logger.warning(f"No chunks found for document {filename} in BM25.")
+
+    def search(self, query: str, top_k: int = 5, user_id: str = None) -> List[Dict[str, Any]]:
+        """Search the BM25 index for the most relevant chunks, filtering by user_id."""
         if self.bm25 is None or not self.chunks:
             logger.warning("BM25 index is empty during search.")
             return []
@@ -59,13 +79,22 @@ class KeywordSearch:
         tokenized_query = self._tokenize(query)
         scores = self.bm25.get_scores(tokenized_query)
         
-        top_n_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+        # Sort indices by score
+        top_n_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
 
         results = []
         for idx in top_n_indices:
             if scores[idx] > 0:
                 chunk = self.chunks[idx].copy()
+                
+                # Filter by user_id
+                if user_id and chunk.get('metadata', {}).get('user_id') != user_id:
+                    continue
+                    
                 chunk['score'] = float(scores[idx])
                 results.append(chunk)
+                
+                if len(results) >= top_k:
+                    break
 
         return results

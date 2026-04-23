@@ -12,7 +12,7 @@ class EmbeddingManager:
     """
     A comprehensive reusable module for generating embeddings and managing the FAISS vector store.
     """
-    def __init__(self, model_name: str = "all-mpnet-base-v2", index_path: Optional[Path] = None, chunks_path: Optional[Path] = None):
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", index_path: Optional[Path] = None, chunks_path: Optional[Path] = None):
         logger.info(f"Initializing EmbeddingManager with model: {model_name}")
         self.model = SentenceTransformer(model_name)
         # Automatically get dimension from the model
@@ -86,26 +86,67 @@ class EmbeddingManager:
         if save and self.index_path and self.chunks_path:
             self.save_index()
 
-    def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: int = 5, user_id: str = None) -> List[Dict[str, Any]]:
         """
-        Convert a query to an embedding and search the FAISS index.
+        Convert a query to an embedding and search the FAISS index, filtering by user_id.
         """
         if self.index is None or self.index.ntotal == 0:
             logger.warning("FAISS index is empty. Cannot search.")
             return []
 
+        # If we have a user_id, we might need to search more than top_k to find enough matches for that user
+        # since FAISS itself doesn't filter.
+        search_k = top_k * 5 if user_id else top_k
+        
         query_embedding = self.generate_embeddings([query])
-        distances, indices = self.index.search(query_embedding, top_k)
+        distances, indices = self.index.search(query_embedding, search_k)
 
         results = []
         for i, idx in enumerate(indices[0]):
             if idx != -1 and idx < len(self.chunks):
                 chunk = self.chunks[idx].copy()
+                
+                # Filter by user_id if provided
+                if user_id and chunk.get('metadata', {}).get('user_id') != user_id:
+                    continue
+                    
                 chunk['score'] = float(distances[0][i])
                 results.append(chunk)
+                
+                if len(results) >= top_k:
+                    break
 
-        logger.info(f"Found {len(results)} FAISS results for query.")
+        logger.info(f"Found {len(results)} filtered FAISS results for user {user_id}.")
         return results
+
+    def remove_document(self, filename: str, save: bool = True):
+        """
+        Remove all chunks associated with a specific filename and rebuild the index.
+        """
+        if not self.chunks:
+            return
+
+        initial_count = len(self.chunks)
+        # Filter out chunks from the document
+        self.chunks = [c for c in self.chunks if c.get('metadata', {}).get('source') != filename]
+        
+        removed_count = initial_count - len(self.chunks)
+        if removed_count > 0:
+            logger.info(f"Removing {removed_count} chunks for {filename} and rebuilding index...")
+            if not self.chunks:
+                self._initialize_empty_index()
+            else:
+                # Rebuild the FAISS index from remaining chunks
+                texts = [c['text'] for c in self.chunks]
+                embeddings = self.generate_embeddings(texts)
+                self.index = faiss.IndexFlatL2(self.dimension)
+                self.index.add(embeddings)
+            
+            if save:
+                self.save_index()
+            logger.info(f"Successfully removed {filename}. Remaining chunks: {len(self.chunks)}.")
+        else:
+            logger.warning(f"No chunks found for document {filename}.")
 
     def save_index(self, index_path: Optional[Path] = None, chunks_path: Optional[Path] = None):
         """Save the FAISS index and chunk metadata to disk."""

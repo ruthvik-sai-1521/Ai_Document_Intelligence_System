@@ -45,14 +45,14 @@ class HybridRetriever:
             return 0.0
         return float(dot_product / (norm_v1 * norm_v2))
 
-    def retrieve(self, query: str, top_k: int = 5, retrieve_k: int = 10) -> List[Dict[str, Any]]:
-        logger.info(f"Retrieving chunks for query: {query}")
+    def retrieve(self, query: str, top_k: int = 5, retrieve_k: int = 10, user_id: str = None) -> List[Dict[str, Any]]:
+        logger.info(f"Retrieving chunks for query: {query} (user: {user_id})")
         
         # 1. Retrieve top 10 chunks from Semantic Search (FAISS)
-        semantic_results = self.embedding_manager.search(query, top_k=retrieve_k)
+        semantic_results = self.embedding_manager.search(query, top_k=retrieve_k, user_id=user_id)
 
         # 2. Retrieve top 10 chunks from Keyword Search (BM25)
-        keyword_results = self.keyword_search.search(query, top_k=retrieve_k)
+        keyword_results = self.keyword_search.search(query, top_k=retrieve_k, user_id=user_id)
 
         # 3. Merge Results
         unique_chunks = self._reciprocal_rank_fusion(semantic_results, keyword_results)

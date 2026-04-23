@@ -16,25 +16,20 @@ class RAGPipeline:
         self.confidence_threshold = confidence_threshold
         self._query_cache = {}
 
-    def run(self, query: str) -> Tuple[str, Dict[str, Any]]:
+    def run(self, query: str, user_id: str = None) -> Tuple[str, Dict[str, Any]]:
         """
-        Executes the full RAG pipeline:
-        1. Accepts query
-        2. Performs hybrid search
-        3. Re-ranks results
-        4. Computes confidence score (rejects if low)
-        5. Builds context and generates Gemini answer
+        Executes the full RAG pipeline scoped to a specific user.
         """
-        query_key = query.strip().lower()
+        query_key = f"{user_id}:{query.strip().lower()}"
         if query_key in self._query_cache:
-            logger.info(f"--- Cache hit for query: '{query}' ---")
+            logger.info(f"--- Cache hit for query: '{query}' (user: {user_id}) ---")
             return self._query_cache[query_key]
             
-        logger.info(f"--- Running RAG pipeline for query: '{query}' ---")
+        logger.info(f"--- Running RAG pipeline for query: '{query}' (user: {user_id}) ---")
 
         try:
             # Steps 1, 2 & 3: Hybrid search and Re-ranking
-            retrieved_chunks = self.retriever.retrieve(query, top_k=5)
+            retrieved_chunks = self.retriever.retrieve(query, top_k=5, user_id=user_id)
 
             if not retrieved_chunks:
                 logger.warning("No documents retrieved.")
