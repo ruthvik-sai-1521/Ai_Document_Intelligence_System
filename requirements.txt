@@ -1,0 +1,7 @@
+streamlit
+faiss-cpu
+sentence-transformers
+requests
+rank_bm25
+PyPDF2
+python-dotenv
