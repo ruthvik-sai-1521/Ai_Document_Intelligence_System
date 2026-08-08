@@ -316,7 +316,7 @@ with st.sidebar:
     
     st.markdown("---")
 
-    tab1, tab2 = st.tabs(["📂 Files", "🌐 Web"])
+    tab1, tab2, tab3 = st.tabs(["📂 Files", "🌐 Web", "🐙 GitHub"])
     
     with tab1:
         uploaded_files = st.file_uploader(
@@ -418,6 +418,64 @@ with st.sidebar:
                                 st.warning("Fetched pages but no text chunks were generated.")
                     except Exception as e:
                         st.error(f"Ingestion error: {e}")
+
+    with tab3:
+        repo_input = st.text_input("Repository URL or owner/repo", placeholder="https://github.com/owner/repo")
+        gh_branch = st.text_input("Branch", value="main")
+        with st.expander("⚙️ Options", expanded=False):
+            gh_token = st.text_input(
+                "GitHub Token (optional)", type="password",
+                help="Personal Access Token for private repos or higher rate limits"
+            )
+
+        if st.button("⚡ Ingest Repository", use_container_width=True):
+            if not repo_input.strip():
+                st.warning("Please enter a repository URL or owner/repo.")
+            else:
+                with st.spinner("Downloading and indexing repository..."):
+                    from src.connectors.github import GitHubConnector
+                    try:
+                        gh_connector = GitHubConnector(
+                            repo_url=repo_input.strip(),
+                            branch=gh_branch.strip() or "main",
+                            token=gh_token.strip() or None
+                        )
+                        gh_docs = gh_connector.fetch_documents()
+
+                        if not gh_docs:
+                            st.warning("No supported text files found in the repository.")
+                        else:
+                            processor = DocumentProcessor()
+                            all_gh_chunks = []
+
+                            for doc in gh_docs:
+                                chunks = processor.process_raw_data(
+                                    raw_data=doc["raw_data"],
+                                    source_name=doc["source"],
+                                    extension=doc["extension"],
+                                    user_id=st.session_state.user_id,
+                                    extra_metadata=doc.get("metadata", {})
+                                )
+                                all_gh_chunks.extend(chunks)
+
+                            if all_gh_chunks:
+                                embedding_manager.add_chunks(all_gh_chunks, save=True)
+                                st.session_state.keyword_search.add_chunks(all_gh_chunks)
+
+                                st.session_state.retriever = HybridRetriever(embedding_manager, st.session_state.keyword_search)
+                                st.session_state.pipeline  = RAGPipeline(st.session_state.retriever, llm)
+
+                                # Track ingested files persistently
+                                for doc in gh_docs:
+                                    doc_chunks = [c for c in all_gh_chunks if c.get("metadata", {}).get("source") == doc["source"]]
+                                    save_document_meta(st.session_state.user_id, doc["source"], len(doc_chunks))
+
+                                st.session_state.uploaded_docs = load_document_meta(st.session_state.user_id)
+                                st.success(f"✅ Indexed {len(gh_docs)} files from repository!")
+                            else:
+                                st.warning("Files found but no text chunks generated.")
+                    except Exception as e:
+                        st.error(f"GitHub ingestion error: {e}")
 
     st.markdown("---")
     st.markdown("### 📚 Indexed Documents")

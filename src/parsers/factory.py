@@ -12,42 +12,77 @@ from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# Singleton TXTParser reused for code and config extensions
+_txt = TXTParser()
+
 class ParserFactory:
     # Pre-instantiate stateless parsers
     _parsers = {
-        ".pdf": PDFParser(),
-        ".txt": TXTParser(),
+        # Document formats
+        ".pdf":  PDFParser(),
+        ".txt":  _txt,
         ".docx": DocxParser(),
         ".pptx": PptxParser(),
         ".xlsx": XlsxParser(),
-        ".csv": CsvParser(),
-        ".md": MarkdownParser(),
+        ".csv":  CsvParser(),
+        ".md":   MarkdownParser(),
         ".html": HtmlParser(),
-        ".htm": HtmlParser(),
-        ".png": ImageParser(),
-        ".jpg": ImageParser(),
+        ".htm":  HtmlParser(),
+        # Image formats
+        ".png":  ImageParser(),
+        ".jpg":  ImageParser(),
         ".jpeg": ImageParser(),
         ".tiff": ImageParser(),
-        ".tif": ImageParser(),
+        ".tif":  ImageParser(),
+        # Source code (plain text extraction)
+        ".py":    _txt,
+        ".java":  _txt,
+        ".js":    _txt,
+        ".ts":    _txt,
+        ".jsx":   _txt,
+        ".tsx":   _txt,
+        ".c":     _txt,
+        ".cpp":   _txt,
+        ".h":     _txt,
+        ".cs":    _txt,
+        ".go":    _txt,
+        ".rb":    _txt,
+        ".rs":    _txt,
+        ".swift": _txt,
+        ".kt":    _txt,
+        ".php":   _txt,
+        ".scala": _txt,
+        ".sh":    _txt,
+        ".bash":  _txt,
+        ".css":   _txt,
+        ".rst":   _txt,
+        # Configuration formats
+        ".json":  _txt,
+        ".yaml":  _txt,
+        ".yml":   _txt,
+        ".xml":   _txt,
+        ".ini":   _txt,
+        ".conf":  _txt,
+        ".toml":  _txt,
+        ".cfg":   _txt,
+        ".env":   _txt,
     }
 
     @classmethod
     def get_parser(cls, extension: str) -> BaseParser:
         """
-        Returns the appropriate BaseParser instance based on file extension.
-        
+        Returns the appropriate BaseParser for the given file extension.
+        Falls back to TXTParser for unrecognized or missing extensions.
+
         Args:
-            extension: The file extension starting with a dot (e.g. '.pdf', '.txt').
-            
+            extension: File extension starting with a dot (e.g. '.pdf', '.py').
+
         Returns:
             An instance of BaseParser.
-            
-        Raises:
-            ValueError: If the file extension is unsupported.
         """
-        ext_lower = extension.lower().strip()
+        ext_lower = extension.lower().strip() if extension else ""
         parser = cls._parsers.get(ext_lower)
         if not parser:
-            logger.error(f"Unsupported file extension: '{extension}'")
-            raise ValueError(f"Unsupported file extension: '{extension}'")
+            logger.debug(f"Unknown extension '{ext_lower}', falling back to TXTParser.")
+            return _txt
         return parser

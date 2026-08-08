@@ -187,15 +187,38 @@ class DocumentProcessor:
             all_chunks.extend(chunks)
         return all_chunks
 
-    def process_raw_data(self, raw_data: bytes, source_name: str, extension: str, user_id: str = None) -> List[Dict[str, Any]]:
-        """Process in-memory raw data directly using factory parsers and run smart chunking."""
+    def process_raw_data(
+        self,
+        raw_data: bytes,
+        source_name: str,
+        extension: str,
+        user_id: str = None,
+        extra_metadata: dict = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Process in-memory raw data directly using factory parsers and run smart chunking.
+        
+        Args:
+            raw_data:       Raw bytes of the file content.
+            source_name:    Identifier string used as the chunk source (e.g. URL or filename).
+            extension:      File extension (e.g. '.py', '.html').
+            user_id:        Optional user identifier for chunk scoping.
+            extra_metadata: Optional dict of additional metadata to merge into every chunk
+                            (e.g. GitHub file_path, folder_hierarchy, repository fields).
+        """
         try:
             parser = ParserFactory.get_parser(extension)
             pages = parser.parse(raw_data, {"source": source_name})
         except Exception as e:
             logger.error(f"Failed to process raw data {source_name}: {e}")
             raise e
-            
+
         chunks = self.smart_chunking(pages, source_id=source_name, user_id=user_id)
+
+        # Merge extra metadata into every chunk
+        if extra_metadata:
+            for chunk in chunks:
+                chunk.setdefault("metadata", {}).update(extra_metadata)
+
         return chunks
 
