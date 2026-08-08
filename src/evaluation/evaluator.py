@@ -114,11 +114,11 @@ if __name__ == "__main__":
     from src.retrieval.keyword_search import KeywordSearch
     from src.retrieval.retriever import HybridRetriever
     from src.llm.generator import LLMGenerator
-    from src.core.config import FAISS_INDEX_PATH, CHUNKS_PATH, BM25_INDEX_PATH
+    from src.core.config import FAISS_INDEX_PATH, CHUNKS_PATH, BM25_INDEX_PATH, EMBEDDING_MODEL_NAME
     
     # Initialize core pipeline components
     logger.info("Initializing components for evaluation...")
-    emb_mgr = EmbeddingManager(index_path=FAISS_INDEX_PATH, chunks_path=CHUNKS_PATH)
+    emb_mgr = EmbeddingManager(model_name=EMBEDDING_MODEL_NAME, index_path=FAISS_INDEX_PATH, chunks_path=CHUNKS_PATH)
     kw_search = KeywordSearch(BM25_INDEX_PATH)
     retriever = HybridRetriever(emb_mgr, kw_search)
     llm = LLMGenerator()

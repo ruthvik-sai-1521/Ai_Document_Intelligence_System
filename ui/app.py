@@ -8,7 +8,7 @@ import time
 import uuid
 from datetime import datetime
 
-from src.core.config import DATA_DIR, FAISS_INDEX_PATH, CHUNKS_PATH, BM25_INDEX_PATH
+from src.core.config import DATA_DIR, FAISS_INDEX_PATH, CHUNKS_PATH, BM25_INDEX_PATH, EMBEDDING_MODEL_NAME
 from src.ingestion.document_processor import DocumentProcessor
 from src.core.embedding_manager import EmbeddingManager
 from src.retrieval.keyword_search import KeywordSearch
@@ -251,7 +251,7 @@ if not st.session_state.messages:
 @st.cache_resource(show_spinner="🔄 Initializing AI models — first run downloads ~80MB...")
 def load_models():
     logger.info("Loading models...")
-    em = EmbeddingManager(index_path=FAISS_INDEX_PATH, chunks_path=CHUNKS_PATH)
+    em = EmbeddingManager(model_name=EMBEDDING_MODEL_NAME, index_path=FAISS_INDEX_PATH, chunks_path=CHUNKS_PATH)
     llm = LLMGenerator()
     return em, llm
 
