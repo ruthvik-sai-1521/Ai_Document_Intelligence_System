@@ -34,20 +34,33 @@ class DocumentProcessor:
     def smart_chunking(self, pages: List[Dict[str, Any]], source_id: str, user_id: str = None) -> List[Dict[str, Any]]:
         """
         Dynamically chunk text (400-800 words), preserving paragraphs and sentences.
-        Adds source, page_number, and user_id metadata.
+        Adds source, page/slide/sheet/row, timestamp, and user_id metadata.
         """
         chunks = []
         current_chunk_text = []
         current_length = 0
         current_pages = set()
+        current_slides = set()
+        current_sheets = set()
+        current_rows = set()
+        current_timestamp = None
 
         def save_chunk():
-            nonlocal current_chunk_text, current_length, current_pages
+            nonlocal current_chunk_text, current_length, current_pages, current_slides, current_sheets, current_rows, current_timestamp
             if current_chunk_text:
                 meta = {
-                    "source": source_id,
-                    "page_number": self.format_page_numbers(current_pages)
+                    "source": source_id
                 }
+                if current_pages:
+                    meta["page_number"] = self.format_page_numbers(current_pages)
+                if current_slides:
+                    meta["slide_number"] = list(current_slides)[0] if len(current_slides) == 1 else sorted(list(current_slides))
+                if current_sheets:
+                    meta["sheet_name"] = list(current_sheets)[0] if len(current_sheets) == 1 else sorted(list(current_sheets))
+                if current_rows:
+                    meta["row_number"] = list(current_rows)[0] if len(current_rows) == 1 else sorted(list(current_rows))
+                if current_timestamp:
+                    meta["timestamp"] = current_timestamp
                 if user_id:
                     meta["user_id"] = user_id
                     
@@ -58,9 +71,32 @@ class DocumentProcessor:
                 current_chunk_text = []
                 current_length = 0
                 current_pages = set()
+                current_slides = set()
+                current_sheets = set()
+                current_rows = set()
+                current_timestamp = None
 
         for page in pages:
-            page_num = page["page_num"]
+            page_meta = page.get("metadata", {})
+            page_num = page_meta.get("page_number")
+            slide_num = page_meta.get("slide_number")
+            sheet_name = page_meta.get("sheet_name")
+            row_num = page_meta.get("row_number")
+            timestamp = page_meta.get("timestamp")
+            
+            def record_metadata():
+                nonlocal current_timestamp
+                if page_num is not None:
+                    current_pages.add(page_num)
+                if slide_num is not None:
+                    current_slides.add(slide_num)
+                if sheet_name is not None:
+                    current_sheets.add(sheet_name)
+                if row_num is not None:
+                    current_rows.add(row_num)
+                if timestamp is not None:
+                    current_timestamp = timestamp
+
             cleaned_text = self.clean_text(page["text"])
             paragraphs = cleaned_text.split('\n\n')
             
@@ -87,11 +123,11 @@ class DocumentProcessor:
                                     save_chunk()
                                 current_chunk_text.append(sentence)
                                 current_length += sentence_words
-                                current_pages.add(page_num)
+                                record_metadata()
                         else:
                             current_chunk_text.append(para)
                             current_length += para_words
-                            current_pages.add(page_num)
+                            record_metadata()
                     else:
                         # Need more words, but adding para exceeds max. Split into sentences.
                         sentences = self.split_into_sentences(para)
@@ -101,11 +137,11 @@ class DocumentProcessor:
                                 save_chunk()
                             current_chunk_text.append(sentence)
                             current_length += sentence_words
-                            current_pages.add(page_num)
+                            record_metadata()
                 else:
                     current_chunk_text.append(para)
                     current_length += para_words
-                    current_pages.add(page_num)
+                    record_metadata()
 
         # Add the last chunk if any
         save_chunk()

@@ -1,6 +1,12 @@
 from src.parsers.base import BaseParser
 from src.parsers.pdf import PDFParser
 from src.parsers.txt import TXTParser
+from src.parsers.docx import DocxParser
+from src.parsers.pptx import PptxParser
+from src.parsers.xlsx import XlsxParser
+from src.parsers.csv import CsvParser
+from src.parsers.markdown import MarkdownParser
+from src.parsers.html import HtmlParser
 from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -10,6 +16,13 @@ class ParserFactory:
     _parsers = {
         ".pdf": PDFParser(),
         ".txt": TXTParser(),
+        ".docx": DocxParser(),
+        ".pptx": PptxParser(),
+        ".xlsx": XlsxParser(),
+        ".csv": CsvParser(),
+        ".md": MarkdownParser(),
+        ".html": HtmlParser(),
+        ".htm": HtmlParser(),
     }
 
     @classmethod

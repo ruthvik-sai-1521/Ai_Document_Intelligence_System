@@ -5,3 +5,7 @@ requests
 rank_bm25
 PyPDF2
 python-dotenv
+python-docx
+python-pptx
+beautifulsoup4
+openpyxl
