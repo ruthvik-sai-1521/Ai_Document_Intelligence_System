@@ -1,7 +1,7 @@
-import PyPDF2
 from pathlib import Path
 from typing import List, Dict, Any, Union
 import re
+from src.parsers.factory import ParserFactory
 from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -12,20 +12,6 @@ class DocumentProcessor:
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
 
-    def extract_pages_from_pdf(self, pdf_path: str) -> List[Dict[str, Any]]:
-        """Extract text from a PDF, preserving page numbers."""
-        pages = []
-        try:
-            with open(pdf_path, "rb") as file:
-                reader = PyPDF2.PdfReader(file)
-                for i, page in enumerate(reader.pages):
-                    extracted = page.extract_text()
-                    if extracted:
-                        pages.append({"page_num": i + 1, "text": extracted})
-            logger.info(f"Successfully extracted {len(pages)} pages from {pdf_path}")
-        except Exception as e:
-            logger.error(f"Error reading {pdf_path}: {e}")
-        return pages
 
     def clean_text(self, text: str) -> str:
         """Basic text cleaning, preserving paragraph boundaries."""
@@ -130,17 +116,14 @@ class DocumentProcessor:
     def process_document(self, file_path: str, user_id: str = None) -> List[Dict[str, Any]]:
         """Process a single document from extraction to chunking."""
         path = Path(file_path)
-        pages = []
-        if path.suffix.lower() == '.pdf':
-            pages = self.extract_pages_from_pdf(str(path))
-        elif path.suffix.lower() == '.txt':
-            with open(path, "r", encoding="utf-8") as file:
-                text = file.read()
-                # For TXT, we don't have pages, just assign page 1
-                pages = [{"page_num": 1, "text": text}]
-        else:
-            logger.error(f"Unsupported file type: {path.suffix}")
-            raise ValueError(f"Unsupported file type: {path.suffix}")
+        try:
+            with open(path, "rb") as file:
+                raw_data = file.read()
+            parser = ParserFactory.get_parser(path.suffix)
+            pages = parser.parse(raw_data, {"source": path.name})
+        except Exception as e:
+            logger.error(f"Failed to process document {path.name}: {e}")
+            raise e
             
         chunks = self.smart_chunking(pages, source_id=path.name, user_id=user_id)
         return chunks
