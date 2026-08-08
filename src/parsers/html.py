@@ -14,10 +14,23 @@ class HtmlParser(BaseParser):
         try:
             soup = BeautifulSoup(raw_data, "html.parser")
             
-            # Remove scripts, styles, and navigation boilerplates
-            for element in soup(["script", "style", "nav", "header", "footer"]):
+            # Remove scripts, styles, and standard layout containers
+            for element in soup(["script", "style", "nav", "header", "footer", "aside"]):
                 element.decompose()
                 
+            # Decompose tags matching ad, sidebar, navigation, and popup classes or IDs
+            import re
+            pattern = re.compile(
+                r'ad-|advertisement|sidebar|social-share|share-bar|share-buttons|'
+                r'social-links|footer-menu|nav-menu|cookie-consent|banner|popup', 
+                re.I
+            )
+            for element in soup.find_all(attrs={"class": pattern}):
+                element.decompose()
+            for element in soup.find_all(attrs={"id": pattern}):
+                element.decompose()
+                
+            # Extract clean paragraphs text(separator="\n")
             text = soup.get_text(separator="\n")
             
             # Clean up whitespace and newlines

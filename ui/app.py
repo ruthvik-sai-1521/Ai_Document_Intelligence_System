@@ -316,43 +316,108 @@ with st.sidebar:
     
     st.markdown("---")
 
-    st.markdown("### 📂 Upload Documents")
-    uploaded_files = st.file_uploader(
-        "Documents", type=["pdf", "txt", "docx", "pptx", "xlsx", "csv", "md", "html", "htm", "png", "jpg", "jpeg", "tiff", "tif"],
-        accept_multiple_files=True, label_visibility="collapsed"
-    )
+    tab1, tab2 = st.tabs(["📂 Files", "🌐 Web"])
+    
+    with tab1:
+        uploaded_files = st.file_uploader(
+            "Documents", type=["pdf", "txt", "docx", "pptx", "xlsx", "csv", "md", "html", "htm", "png", "jpg", "jpeg", "tiff", "tif"],
+            accept_multiple_files=True, label_visibility="collapsed"
+        )
 
-    if st.button("⚡ Process Documents", use_container_width=True):
-        if not uploaded_files:
-            st.warning("Please upload at least one file.")
-        else:
-            with st.spinner("Processing..."):
-                file_paths = []
-                for file in uploaded_files:
-                    path = DATA_DIR / file.name
-                    with open(path, "wb") as f:
-                        f.write(file.getbuffer())
-                    file_paths.append(str(path))
+        if st.button("⚡ Process Files", use_container_width=True):
+            if not uploaded_files:
+                st.warning("Please upload at least one file.")
+            else:
+                with st.spinner("Processing..."):
+                    file_paths = []
+                    for file in uploaded_files:
+                        path = DATA_DIR / file.name
+                        with open(path, "wb") as f:
+                            f.write(file.getbuffer())
+                        file_paths.append(str(path))
 
-                processor = DocumentProcessor()
-                chunks = processor.process_documents(file_paths, user_id=st.session_state.user_id)
-                embedding_manager.add_chunks(chunks, save=True)
-                st.session_state.keyword_search.add_chunks(chunks)
+                    processor = DocumentProcessor()
+                    chunks = processor.process_documents(file_paths, user_id=st.session_state.user_id)
+                    embedding_manager.add_chunks(chunks, save=True)
+                    st.session_state.keyword_search.add_chunks(chunks)
 
-                st.session_state.retriever = HybridRetriever(embedding_manager, st.session_state.keyword_search)
-                st.session_state.pipeline  = RAGPipeline(st.session_state.retriever, llm)
+                    st.session_state.retriever = HybridRetriever(embedding_manager, st.session_state.keyword_search)
+                    st.session_state.pipeline  = RAGPipeline(st.session_state.retriever, llm)
 
-                # Track uploaded docs persistently
-                for file in uploaded_files:
-                    doc_chunks = [c for c in chunks if c.get("metadata", {}).get("source") == file.name]
-                    chunk_count = len(doc_chunks)
-                    save_document_meta(st.session_state.user_id, file.name, chunk_count)
-                
-                # Refresh session state
-                st.session_state.uploaded_docs = load_document_meta(st.session_state.user_id)
+                    # Track uploaded docs persistently
+                    for file in uploaded_files:
+                        doc_chunks = [c for c in chunks if c.get("metadata", {}).get("source") == file.name]
+                        chunk_count = len(doc_chunks)
+                        save_document_meta(st.session_state.user_id, file.name, chunk_count)
+                    
+                    # Refresh session state
+                    st.session_state.uploaded_docs = load_document_meta(st.session_state.user_id)
 
-                logger.info(f"Processed {len(uploaded_files)} files.")
-                st.success(f"✅ {len(uploaded_files)} file(s) processed!")
+                    logger.info(f"Processed {len(uploaded_files)} files.")
+                    st.success(f"✅ {len(uploaded_files)} file(s) processed!")
+
+    with tab2:
+        web_urls = st.text_area("URLs (comma/line separated)", placeholder="https://example.com")
+        
+        with st.expander("⚙️ Crawl Options", expanded=False):
+            crawl_depth = st.slider("Max Depth", min_value=1, max_value=3, value=1)
+            use_sitemap = st.checkbox("Check Sitemap.xml", value=False)
+            respect_robots = st.checkbox("Respect Robots.txt", value=True)
+            
+        if st.button("⚡ Ingest Websites", use_container_width=True):
+            if not web_urls.strip():
+                st.warning("Please enter at least one URL.")
+            else:
+                with st.spinner("Crawling..."):
+                    import re as ui_re
+                    urls = [u.strip() for u in ui_re.split(r'[,\n]', web_urls) if u.strip()]
+                    
+                    from src.connectors.web import WebConnector
+                    connector = WebConnector(
+                        urls=urls,
+                        max_depth=crawl_depth,
+                        use_sitemap=use_sitemap,
+                        respect_robots=respect_robots
+                    )
+                    
+                    try:
+                        web_docs = connector.fetch_documents()
+                        
+                        if not web_docs:
+                            st.error("No pages could be fetched or crawl was restricted by Robots.txt.")
+                        else:
+                            processor = DocumentProcessor()
+                            all_web_chunks = []
+                            
+                            for doc in web_docs:
+                                chunks = processor.process_raw_data(
+                                    raw_data=doc["raw_data"],
+                                    source_name=doc["source"],
+                                    extension=doc["extension"],
+                                    user_id=st.session_state.user_id
+                                )
+                                all_web_chunks.extend(chunks)
+                                
+                            if all_web_chunks:
+                                embedding_manager.add_chunks(all_web_chunks, save=True)
+                                st.session_state.keyword_search.add_chunks(all_web_chunks)
+                                
+                                st.session_state.retriever = HybridRetriever(embedding_manager, st.session_state.keyword_search)
+                                st.session_state.pipeline  = RAGPipeline(st.session_state.retriever, llm)
+                                
+                                # Track crawled sources persistently
+                                for doc in web_docs:
+                                    doc_chunks = [c for c in all_web_chunks if c.get("metadata", {}).get("source") == doc["source"]]
+                                    save_document_meta(st.session_state.user_id, doc["source"], len(doc_chunks))
+                                    
+                                # Refresh session state
+                                st.session_state.uploaded_docs = load_document_meta(st.session_state.user_id)
+                                
+                                st.success(f"✅ {len(web_docs)} page(s) processed!")
+                            else:
+                                st.warning("Fetched pages but no text chunks were generated.")
+                    except Exception as e:
+                        st.error(f"Ingestion error: {e}")
 
     st.markdown("---")
     st.markdown("### 📚 Indexed Documents")

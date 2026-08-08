@@ -186,3 +186,16 @@ class DocumentProcessor:
             chunks = self.process_document(path, user_id=user_id)
             all_chunks.extend(chunks)
         return all_chunks
+
+    def process_raw_data(self, raw_data: bytes, source_name: str, extension: str, user_id: str = None) -> List[Dict[str, Any]]:
+        """Process in-memory raw data directly using factory parsers and run smart chunking."""
+        try:
+            parser = ParserFactory.get_parser(extension)
+            pages = parser.parse(raw_data, {"source": source_name})
+        except Exception as e:
+            logger.error(f"Failed to process raw data {source_name}: {e}")
+            raise e
+            
+        chunks = self.smart_chunking(pages, source_id=source_name, user_id=user_id)
+        return chunks
+
