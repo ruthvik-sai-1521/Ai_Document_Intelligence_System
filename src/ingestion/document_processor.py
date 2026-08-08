@@ -34,7 +34,7 @@ class DocumentProcessor:
     def smart_chunking(self, pages: List[Dict[str, Any]], source_id: str, user_id: str = None) -> List[Dict[str, Any]]:
         """
         Dynamically chunk text (400-800 words), preserving paragraphs and sentences.
-        Adds source, page/slide/sheet/row, timestamp, and user_id metadata.
+        Adds source, page/slide/sheet/row, timestamp, OCR metadata, and user_id metadata.
         """
         chunks = []
         current_chunk_text = []
@@ -44,9 +44,11 @@ class DocumentProcessor:
         current_sheets = set()
         current_rows = set()
         current_timestamp = None
+        current_is_ocr = False
+        current_ocr_metadata = []
 
         def save_chunk():
-            nonlocal current_chunk_text, current_length, current_pages, current_slides, current_sheets, current_rows, current_timestamp
+            nonlocal current_chunk_text, current_length, current_pages, current_slides, current_sheets, current_rows, current_timestamp, current_is_ocr, current_ocr_metadata
             if current_chunk_text:
                 meta = {
                     "source": source_id
@@ -61,6 +63,10 @@ class DocumentProcessor:
                     meta["row_number"] = list(current_rows)[0] if len(current_rows) == 1 else sorted(list(current_rows))
                 if current_timestamp:
                     meta["timestamp"] = current_timestamp
+                if current_is_ocr:
+                    meta["is_ocr"] = True
+                if current_ocr_metadata:
+                    meta["ocr_metadata"] = current_ocr_metadata
                 if user_id:
                     meta["user_id"] = user_id
                     
@@ -75,6 +81,8 @@ class DocumentProcessor:
                 current_sheets = set()
                 current_rows = set()
                 current_timestamp = None
+                current_is_ocr = False
+                current_ocr_metadata = []
 
         for page in pages:
             page_meta = page.get("metadata", {})
@@ -83,9 +91,11 @@ class DocumentProcessor:
             sheet_name = page_meta.get("sheet_name")
             row_num = page_meta.get("row_number")
             timestamp = page_meta.get("timestamp")
+            is_ocr = page_meta.get("is_ocr", False)
+            ocr_metadata = page_meta.get("ocr_metadata", [])
             
             def record_metadata():
-                nonlocal current_timestamp
+                nonlocal current_timestamp, current_is_ocr, current_ocr_metadata
                 if page_num is not None:
                     current_pages.add(page_num)
                 if slide_num is not None:
@@ -96,6 +106,10 @@ class DocumentProcessor:
                     current_rows.add(row_num)
                 if timestamp is not None:
                     current_timestamp = timestamp
+                if is_ocr:
+                    current_is_ocr = True
+                if ocr_metadata:
+                    current_ocr_metadata.extend(ocr_metadata)
 
             cleaned_text = self.clean_text(page["text"])
             paragraphs = cleaned_text.split('\n\n')

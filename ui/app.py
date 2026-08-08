@@ -318,7 +318,7 @@ with st.sidebar:
 
     st.markdown("### 📂 Upload Documents")
     uploaded_files = st.file_uploader(
-        "Documents", type=["pdf", "txt", "docx", "pptx", "xlsx", "csv", "md", "html", "htm"],
+        "Documents", type=["pdf", "txt", "docx", "pptx", "xlsx", "csv", "md", "html", "htm", "png", "jpg", "jpeg", "tiff", "tif"],
         accept_multiple_files=True, label_visibility="collapsed"
     )
 

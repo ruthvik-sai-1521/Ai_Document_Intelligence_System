@@ -7,6 +7,7 @@ from src.parsers.xlsx import XlsxParser
 from src.parsers.csv import CsvParser
 from src.parsers.markdown import MarkdownParser
 from src.parsers.html import HtmlParser
+from src.parsers.image import ImageParser
 from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -23,6 +24,11 @@ class ParserFactory:
         ".md": MarkdownParser(),
         ".html": HtmlParser(),
         ".htm": HtmlParser(),
+        ".png": ImageParser(),
+        ".jpg": ImageParser(),
+        ".jpeg": ImageParser(),
+        ".tiff": ImageParser(),
+        ".tif": ImageParser(),
     }
 
     @classmethod
