@@ -3,7 +3,8 @@ import numpy as np
 import pickle
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from sentence_transformers import SentenceTransformer
+from src.embeddings.base import BaseEmbedding
+from src.embeddings.huggingface import HuggingFaceEmbedding
 from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -12,11 +13,14 @@ class EmbeddingManager:
     """
     A comprehensive reusable module for generating embeddings and managing the FAISS vector store.
     """
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", index_path: Optional[Path] = None, chunks_path: Optional[Path] = None):
-        logger.info(f"Initializing EmbeddingManager with model: {model_name}")
-        self.model = SentenceTransformer(model_name)
-        # Automatically get dimension from the model
-        self.dimension = self.model.get_sentence_embedding_dimension()
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", index_path: Optional[Path] = None, chunks_path: Optional[Path] = None, embedding_engine: Optional[BaseEmbedding] = None):
+        logger.info(f"Initializing EmbeddingManager...")
+        if embedding_engine:
+            self.embedding_engine = embedding_engine
+        else:
+            self.embedding_engine = HuggingFaceEmbedding(model_name=model_name)
+        # Automatically get dimension from the embedding engine
+        self.dimension = self.embedding_engine.get_embedding_dimension()
         
         self.index_path = index_path
         self.chunks_path = chunks_path
@@ -57,7 +61,7 @@ class EmbeddingManager:
                 
         if texts_to_compute:
             logger.info(f"Generating new embeddings for {len(texts_to_compute)} texts (Cache hits: {len(texts) - len(texts_to_compute)})...")
-            computed_embeddings = self.model.encode(texts_to_compute, show_progress_bar=False)
+            computed_embeddings = self.embedding_engine.embed_documents(texts_to_compute)
             
             for idx, emb, text in zip(indices_to_compute, computed_embeddings, texts_to_compute):
                 emb_array = np.array(emb).astype('float32')

@@ -6,9 +6,9 @@
 # ===========================
 # Generated Data & Indices
 # ===========================
-data/
-embeddings/
-logs/
+/data/
+/embeddings/
+/logs/
 
 # ===========================
 # Python
