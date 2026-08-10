@@ -3,8 +3,9 @@ title: DocuMind AI Enterprise RAG
 emoji: 🧠
 colorFrom: blue
 colorTo: indigo
-sdk: docker
-app_port: 7860
+sdk: streamlit
+sdk_version: 1.30.0
+app_file: ui/app.py
 pinned: false
 ---
 
