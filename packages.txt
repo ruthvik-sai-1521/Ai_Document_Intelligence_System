@@ -1,8 +1,4 @@
 tesseract-ocr
-tesseract-ocr-eng
 poppler-utils
 ffmpeg
-libgl1-mesa-glx
-libglib2.0-0
-libmagic1
-build-essential
+libgl1
