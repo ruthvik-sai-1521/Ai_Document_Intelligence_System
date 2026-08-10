@@ -1,99 +1,154 @@
-# 📚 Advanced AI Document Intelligence System
+---
+title: DocuMind AI Enterprise RAG
+emoji: 🧠
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
 
-A production-ready Retrieval-Augmented Generation (RAG) system designed to ingest, analyze, and intelligently answer questions across multiple documents. This system utilizes a highly optimized hybrid search architecture to eliminate hallucinations and provide mathematically backed, verifiable answers with exact source citations.
+<div align="center">
+
+# 🧠 DocuMind AI — Enterprise Document Intelligence System
+
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Streamlit App](https://img.shields.io/badge/UI-Streamlit-FF4B4B.svg)](https://streamlit.io/)
+[![PyTorch GPU](https://img.shields.io/badge/PyTorch-CUDA%20Accelerated-EE4C2C.svg)](https://pytorch.org/)
+[![Docker Supported](https://img.shields.io/badge/Docker-Containerized-2496ED.svg)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+*An enterprise-grade, multi-source RAG system featuring Hybrid Semantic+Lexical Search, CrossEncoder Re-ranking, Conversational Memory, JWT Authentication, RBAC Scoping, and a 10-Metric Quantitative Evaluation Dashboard.*
+
+</div>
 
 ---
 
-## 🌟 What is this project?
-The Advanced AI Document Intelligence System is a sophisticated chat-based application that allows users to upload multiple documents (PDFs, TXTs) and query them collectively. Instead of relying on an AI's pre-trained (and potentially outdated or incorrect) knowledge, this system strictly limits the AI to only use the exact text found within your uploaded documents. 
+## 🌟 Key Features
 
-If the answer isn't in your files, the AI will refuse to guess, guaranteeing high-fidelity intelligence for legal, medical, academic, or corporate document analysis.
+* **⚡ Upgraded Hybrid Retrieval Pipeline**:
+  - **Vector Search**: Dense FAISS vector store ($d=384$ normalized embeddings via `all-MiniLM-L6-v2`).
+  - **Lexical Search**: Okapi BM25 keyword matching engine.
+  - **Reciprocal Rank Fusion (RRF)**: Merges rank positions dynamically using $RRF\_Score = \sum \frac{1}{60 + r}$.
+  - **CrossEncoder Re-ranking**: Precision candidate evaluation using `cross-encoder/ms-marco-MiniLM-L-6-v2`.
+  - **MMR Diversification**: Maximal Marginal Relevance ($\lambda = 0.7$) to eliminate passage redundancy.
+  - **Context Compression & Adaptive Top-K**: Sentence-level semantic filtering and sharp score drop pruning.
 
----
+* **📥 Multi-Source Ingestion Engine (13 Connectors)**:
+  - Supports PDFs, TXT, DOCX, PPTX, XLSX, CSV, Markdown, HTML, Image OCR (Tesseract), YouTube Transcripts, GitHub Repos, SQL Databases (SQLite/MySQL/PostgreSQL), and Google Drive.
 
-## 🛠️ Technologies Used
+* **🧠 Conversational Memory & Token Optimization**:
+  - Isolated session state persistence (`session_id`).
+  - Contextual Query Rewriting for complex follow-up questions.
+  - Sliding window token optimization (pruning older turns over 600 words).
 
-### Core Architecture
-*   **Python**: The core backend language.
-*   **Streamlit**: Powers the interactive, chat-based frontend UI.
+* **🔒 Enterprise Security & RBAC Scoping**:
+  - SHA-256 password salting and JWT session token verification.
+  - Role-Based Access Control (`admin` and `user` roles).
+  - Strict user-level document isolation for complete data privacy.
 
-### Ingestion & Retrieval (RAG Pipeline)
-*   **PyPDF2**: Extracts raw text from uploaded PDF files while tracking exact page numbers.
-*   **Sentence-Transformers (`all-mpnet-base-v2`)**: Transforms text chunks into high-dimensional mathematical vectors for semantic understanding.
-*   **FAISS (Facebook AI Similarity Search)**: An ultra-fast, memory-mapped vector database used to instantly find contextually similar text (Semantic Search).
-*   **BM25 (`rank_bm25`)**: A highly-efficient lexical search engine used to find exact keyword matches (Keyword Search).
+* **📈 10-Metric Quantitative Evaluation Dashboard**:
+  - Tracks *Retrieval Precision, Recall, Latency, Embedding Time, LLM Response Time, Faithfulness, Context Relevance, Answer Relevance, Citation Accuracy, and Hallucination Rate*.
+  - 1-click system benchmark execution built into Streamlit.
 
-### Generation (LLM)
-*   **Google Gemini API (`gemini-pro`)**: The generative engine that processes the retrieved contexts and formulates a human-readable answer.
-
----
-
-## ⚙️ How it Works (The Pipeline)
-
-1.  **Smart Ingestion**: 
-    When you upload documents, the system doesn't just read them; it breaks them down into "chunks" (approx. 400-800 words) while explicitly preventing sentences or paragraphs from being cut in half. It securely tags every single chunk with its source filename and page number.
-2.  **Dual Indexing**: 
-    The chunks are embedded into vectors and stored in **FAISS**, while simultaneously being indexed into **BM25**.
-3.  **Hybrid Search**: 
-    When you ask a question, the system queries FAISS (to understand the *meaning* of your question) and BM25 (to find exact *keywords*). 
-4.  **Reciprocal Rank Fusion (RRF) & Re-Ranking**: 
-    The results from both search engines are merged using the mathematical RRF algorithm, and then strictly re-ranked using **Cosine Similarity** to find the absolute top 5 most relevant paragraphs.
-5.  **Strict Prompting & Generation**: 
-    The top contexts are injected into a highly-restrictive prompt and sent to Gemini. Gemini synthesizes the answer and explicitly cites the source documents (e.g., `[Document 1]`).
-6.  **Explainability**: 
-    The UI displays the final answer alongside a "Confidence Score" and an expandable section revealing the exact document names, page numbers, and quote snippets used to generate the answer.
+* **👁️ Interactive Document Previewer & Feedback**:
+  - **Chunk Inspector**: Preview raw parsed text chunks, word counts, and page numbers.
+  - **Interactive Feedback**: Rate assistant responses with 👍 / 👎 buttons.
 
 ---
 
-## 💡 What is its Use Case?
+## 🏛️ System Architecture
 
-This system is built for environments where **accuracy is non-negotiable**.
-*   **Legal & Compliance**: Rapidly query hundreds of pages of contracts to find specific clauses without fear of the AI hallucinating legal terms.
-*   **Academic Research**: Upload multiple research papers and ask the system to synthesize methodologies, providing exact page numbers for your bibliography.
-*   **Corporate Knowledge Base**: Ingest company handbooks, HR policies, or technical manuals to provide employees with instant, 100% accurate internal support.
-
----
-
-## 🚀 Setup & Installation
-
-### 1. Prerequisites
-Ensure you have Python 3.9+ installed on your machine.
-
-### 2. Install Dependencies
-Navigate to the project root and install the required packages:
-```bash
-pip install -r requirements.txt
+```
+                      +-----------------------------+
+                      |  Streamlit Enterprise UI    |
+                      +--------------+--------------+
+                                     |
+                      +--------------+--------------+
+                      | 🔒 JWT Auth & RBAC Security |
+                      +--------------+--------------+
+                                     |
+                      +--------------+--------------+
+                      | ⚙️ RAG Pipeline & Memory   |
+                      +--------------+--------------+
+                                     |
+         +---------------------------+---------------------------+
+         |                                                       |
+         v                                                       v
++-------------------------------+               +-------------------------------+
+| ⚡ FAISS Vector Search Engine |               | 🔍 Okapi BM25 Keyword Search  |
++---------------+---------------+               +---------------+---------------+
+                |                                               |
+                +-----------------------+-----------------------+
+                                        |
+                                        v
+                        +---------------+---------------+
+                        | ⚡ Reciprocal Rank Fusion    |
+                        +---------------+---------------+
+                                        |
+                                        v
+                        +---------------+---------------+
+                        | 🎯 CrossEncoder Re-ranker     |
+                        +---------------+---------------+
+                                        |
+                                        v
+                        +---------------+---------------+
+                        | 🤖 LLM Answer Generator       |
+                        +-------------------------------+
 ```
 
-### 3. Configure Environment Variables
-Create a `.env` file in the root directory and add your Google Gemini API key:
-```env
-GEMINI_API_KEY="your_api_key_here"
-```
+---
 
-### 4. Run the Application
-Launch the Streamlit interface:
+## ⚡ Quickstart Guide
+
+### 1. Local Python Setup
 ```bash
+# Clone repository
+git clone https://github.com/your-org/Ai_Document_Intelligence_System.git
+cd Ai_Document_Intelligence_System
+
+# Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # Linux/macOS
+
+# Install dependencies
+pip install --upgrade pip setuptools wheel
+pip install PyJWT sentence-transformers faiss-cpu rank-bm25 groq pypdf python-docx python-pptx openpyxl pandas pytesseract pdf2image yt-dlp openai-whisper streamlit numpy scikit-learn
+
+# Set your Groq API Key
+cp .env.example .env
+# Edit .env and set GROQ_API_KEY=gsk_your_groq_api_key_here
+
+# Launch Streamlit Application
 streamlit run ui/app.py
 ```
-*Note: The first time you run the application, it will take a few minutes to automatically download the 420MB `all-mpnet-base-v2` embedding model.*
+
+### 2. Docker Compose Deployment
+```bash
+cp .env.example .env
+# Set GROQ_API_KEY in .env
+
+docker compose up -d --build
+# Open http://localhost:8501 in your browser
+```
 
 ---
 
-## 📁 Project Structure
+## 📚 Complete Documentation Index
 
-```text
-├── data/                  # Raw uploaded documents
-├── embeddings/            # Persistent FAISS and BM25 indices
-├── logs/                  # System logs and evaluation reports
-├── src/
-│   ├── core/              # Config, Logging, Pipeline Orchestration, & Embedding caching
-│   ├── ingestion/         # PDF Parsing and Smart Chunking
-│   ├── retrieval/         # BM25 implementation & Hybrid Retriever
-│   ├── llm/               # Gemini API wrapper & Prompt Engineering
-│   └── evaluation/        # Automated accuracy benchmarking scripts
-├── ui/
-│   └── app.py             # Streamlit frontend
-├── requirements.txt       # Project dependencies
-└── README.md              # Documentation
-```
+| Documentation Guide | Description |
+| :--- | :--- |
+| 🏛️ **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Technical Architecture, Mermaid Component, Sequence & Flow Diagrams, Directory Tree |
+| 📖 **[docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)** | Core Python API Specifications & Signature Specifications |
+| 🛠️ **[docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)** | Developer Environment Setup, Running Tests & Extending Connectors |
+| 👤 **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** | End-User UI Manual, Document Previewer, Chat Citations & Benchmark Dashboard |
+| 🔍 **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** | Diagnostic & Resolution Steps for Common Gotchas & Errors |
+| 🚀 **[docs/FUTURE_SCOPE.md](docs/FUTURE_SCOPE.md)** | Product Roadmap, Agentic Tools & Architectural Next Steps |
+| 🐳 **[DEPLOYMENT.md](DEPLOYMENT.md)** | Local Docker & NVIDIA GPU Passthrough Setup |
+| 🚀 **[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)** | Multi-Cloud Deployment Guide (AWS, GCP, Azure, Render, Railway, Nginx SSL) |
+
+---
+
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

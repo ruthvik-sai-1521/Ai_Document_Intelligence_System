@@ -1,0 +1,71 @@
+name: DocuMind AI CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    name: 🧪 Automated Test & Compilation Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install System Dependencies (OCR, PDF, Audio)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils ffmpeg libgl1-mesa-glx
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install PyJWT sentence-transformers faiss-cpu rank-bm25 groq pypdf python-docx python-pptx openpyxl pandas pytesseract pdf2image yt-dlp openai-whisper streamlit numpy scikit-learn
+
+      - name: Verify Package Compilation
+        run: |
+          python -m compileall src
+          python -m py_compile ui/app.py
+
+      - name: Run Core Evaluation Benchmark Tests
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          JWT_SECRET_KEY: "ci_cd_test_secret_key"
+        run: |
+          python scratch/test_auth_rbac.py
+          python scratch/test_evaluation_dashboard.py
+
+  build-and-push:
+    name: 🐳 Docker Build & Image Push
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build -t documind-ai:latest .
+
+  deploy-paas:
+    name: 🚀 Production PaaS Trigger (Render / Railway)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Deploy to Render (Optional Webhook)
+        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"

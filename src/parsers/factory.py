@@ -1,14 +1,16 @@
-from src.parsers.base import BaseParser
-from src.parsers.pdf import PDFParser
-from src.parsers.txt import TXTParser
-from src.parsers.docx import DocxParser
-from src.parsers.pptx import PptxParser
-from src.parsers.xlsx import XlsxParser
-from src.parsers.csv import CsvParser
-from src.parsers.markdown import MarkdownParser
-from src.parsers.html import HtmlParser
-from src.parsers.image import ImageParser
-from src.core.logger import setup_logger
+from parsers.base import BaseParser
+from parsers.pdf import PDFParser
+from parsers.txt import TXTParser
+from parsers.docx import DocxParser
+from parsers.pptx import PptxParser
+from parsers.xlsx import XlsxParser
+from parsers.csv import CsvParser
+from parsers.markdown import MarkdownParser
+from parsers.html import HtmlParser
+from parsers.image import ImageParser
+# pyrefly: ignore [missing-import]
+from parsers.structured import StructuredDataParser
+from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -28,6 +30,7 @@ class ParserFactory:
         ".md":   MarkdownParser(),
         ".html": HtmlParser(),
         ".htm":  HtmlParser(),
+        ".json": StructuredDataParser(),
         # Image formats
         ".png":  ImageParser(),
         ".jpg":  ImageParser(),
@@ -57,7 +60,6 @@ class ParserFactory:
         ".css":   _txt,
         ".rst":   _txt,
         # Configuration formats
-        ".json":  _txt,
         ".yaml":  _txt,
         ".yml":   _txt,
         ".xml":   _txt,

@@ -9,12 +9,20 @@ from src.core.logger import setup_logger
 logger = setup_logger(__name__)
 
 class EasyOCREngine(BaseOCREngine):
+    _readers_cache = {}
+
     def __init__(self, languages: List[str] = None):
         if languages is None:
             languages = ['en']
-        logger.info(f"Initializing EasyOCREngine for languages: {languages}...")
-        # gpu=False is set by default to prevent CUDA compatibility warnings on standard CPU machines
-        self.reader = easyocr.Reader(languages, gpu=False)
+        cache_key = tuple(sorted(languages))
+        if cache_key in EasyOCREngine._readers_cache:
+            logger.debug(f"Reusing cached EasyOCREngine for languages: {languages}")
+            self.reader = EasyOCREngine._readers_cache[cache_key]
+        else:
+            logger.info(f"Initializing EasyOCREngine for languages: {languages}...")
+            # gpu=False is set by default to prevent CUDA compatibility warnings on standard CPU machines
+            self.reader = easyocr.Reader(languages, gpu=False)
+            EasyOCREngine._readers_cache[cache_key] = self.reader
         
     def extract_text_with_metadata(self, image_data: bytes) -> List[Dict[str, Any]]:
         """Run OCR on raw image bytes and return text blocks with coordinates and confidences."""

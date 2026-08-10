@@ -3,8 +3,8 @@ import PyPDF2
 import fitz  # PyMuPDF
 from datetime import datetime
 from typing import List, Dict, Any
-from src.parsers.base import BaseParser
-from src.core.logger import setup_logger
+from parsers.base import BaseParser
+from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -16,8 +16,9 @@ class PDFParser(BaseParser):
     def ocr_engine(self):
         if self._ocr_engine is None:
             # Lazily load OCR Engine to save memory/computation on digital-only PDF parses
-            from src.ocr.easy_ocr import EasyOCREngine
-            self._ocr_engine = EasyOCREngine()
+            from ocr.easy_ocr import EasyOCREngine
+            from core.config import OCR_LANGUAGES
+            self._ocr_engine = EasyOCREngine(languages=OCR_LANGUAGES)
         return self._ocr_engine
 
     def parse(self, raw_data: bytes, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:

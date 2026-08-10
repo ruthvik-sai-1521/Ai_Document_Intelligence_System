@@ -60,8 +60,52 @@ def init_db():
                 is_answered  INTEGER NOT NULL
             )
         """)
+        
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id      TEXT    NOT NULL,
+                query_text   TEXT,
+                rating       TEXT    NOT NULL,
+                timestamp    TEXT    NOT NULL
+            )
+        """)
+        
+        # Migrate/Alter table to add new columns if they do not exist
+        cursor = conn.execute("PRAGMA table_info(documents)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        if "drive_file_id" not in columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN drive_file_id TEXT")
+        if "version" not in columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN version TEXT")
+        if "modified_time" not in columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN modified_time TEXT")
+            
+        cursor = conn.execute("PRAGMA table_info(chat_history)")
+        chat_columns = [row["name"] for row in cursor.fetchall()]
+        if "session_id" not in chat_columns:
+            conn.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT DEFAULT 'default'")
+            
         conn.commit()
     logger.info("Chat history database initialized.")
+
+
+def save_feedback(user_id: str, query: str, rating: str):
+    """Save user feedback rating ('thumbs_up' or 'thumbs_down') for a query response."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with _get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO feedback (user_id, query_text, rating, timestamp)
+                VALUES (?, ?, ?, ?)
+                """,
+                (user_id, query, rating, now)
+            )
+            conn.commit()
+        logger.info(f"Saved feedback [{rating}] for user {user_id}.")
+    except Exception as e:
+        logger.error(f"Failed to save user feedback: {e}")
 
 
 def save_chat(
@@ -69,7 +113,8 @@ def save_chat(
     role: str,
     content: str,
     confidence: float = 0.0,
-    sources: Optional[List[Dict[str, Any]]] = None
+    sources: Optional[List[Dict[str, Any]]] = None,
+    session_id: str = 'default'
 ):
     """
     Save a single chat message (user or assistant) to the SQLite database.
@@ -79,34 +124,83 @@ def save_chat(
         content:    The message text
         confidence: Retrieval confidence score (for assistant messages)
         sources:    List of source chunk dicts (for assistant messages)
+        session_id: Optional unique identifier for the conversation session
     """
     now = datetime.now()
     session_date = now.strftime("%Y-%m-%d")
     timestamp    = now.strftime("%H:%M:%S")
 
-    # Serialize sources — keep only metadata and a short text snippet
+    # Serialize sources — keep metadata, YouTube attributes, and text snippet
     serializable_sources = []
     for src in (sources or []):
+        meta = src.get("metadata", {}) if isinstance(src.get("metadata"), dict) else {}
+        s_name = meta.get("source") or src.get("source") or "Unknown"
+        p_num = meta.get("page_number") or src.get("page_number") or "N/A"
+        snip = src.get("text") or src.get("snippet") or ""
+        s_type = meta.get("source_type") or src.get("source_type") or ("youtube" if "youtube" in str(s_name).lower() else "file")
+        v_url = meta.get("video_url_timestamped") or src.get("video_url_timestamped") or ""
+        v_title = meta.get("video_title") or src.get("video_title") or ""
+        t_range = meta.get("formatted_time_range") or src.get("formatted_time_range") or ""
+        s_fmt = meta.get("start_formatted") or src.get("start_formatted") or ""
+
         serializable_sources.append({
-            "source":       src.get("metadata", {}).get("source", "Unknown"),
-            "page_number":  src.get("metadata", {}).get("page_number", "N/A"),
-            "snippet":      src.get("text", "")[:200],
-            "rerank_score": src.get("rerank_score", 0.0)
+            "source": s_name,
+            "page_number": p_num,
+            "snippet": snip[:300],
+            "text": snip[:300],
+            "rerank_score": float(src.get("rerank_score", 0.0)),
+            "source_type": s_type,
+            "video_url_timestamped": v_url,
+            "video_title": v_title,
+            "formatted_time_range": t_range,
+            "start_formatted": s_fmt
         })
 
     try:
         with _get_connection() as conn:
             conn.execute(
                 """
-                INSERT INTO chat_history (user_id, session_date, timestamp, role, content, confidence, sources)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO chat_history (user_id, session_date, timestamp, role, content, confidence, sources, session_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (user_id, session_date, timestamp, role, content, confidence, json.dumps(serializable_sources))
+                (user_id, session_date, timestamp, role, content, confidence, json.dumps(serializable_sources), session_id)
             )
             conn.commit()
-        logger.info(f"Saved [{role}] message for user {user_id}.")
+        logger.info(f"Saved [{role}] message for user {user_id} in session {session_id}.")
     except Exception as e:
         logger.error(f"Failed to save chat message: {e}")
+
+
+def load_session_history(user_id: str, session_id: str = 'default', limit: int = 10) -> List[Dict[str, Any]]:
+    """
+    Load the last N messages for a specific session.
+    """
+    try:
+        with _get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT role, content, confidence, sources, timestamp
+                FROM chat_history
+                WHERE user_id = ? AND session_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (user_id, session_id, limit)
+            ).fetchall()
+            
+        messages = []
+        for row in reversed(rows):
+            messages.append({
+                "role": row["role"],
+                "content": row["content"],
+                "confidence": row["confidence"],
+                "sources": json.loads(row["sources"]) if row["sources"] else [],
+                "timestamp": row["timestamp"]
+            })
+        return messages
+    except Exception as e:
+        logger.error(f"Failed to load session history for {session_id}: {e}")
+        return []
 
 
 def load_chat_history(user_id: str, limit_days: int = 30) -> Dict[str, List[Dict[str, Any]]]:
@@ -200,28 +294,44 @@ def clear_history(user_id: str):
 # Document Metadata Functions
 # ─────────────────────────────────────────────
 
-def save_document_meta(user_id: str, filename: str, chunk_count: int):
-    """Save document metadata for a specific user."""
+def save_document_meta(
+    user_id: str,
+    filename: str,
+    chunk_count: int,
+    drive_file_id: Optional[str] = None,
+    version: Optional[str] = None,
+    modified_time: Optional[str] = None
+):
+    """Save document metadata for a specific user (supports Google Drive metadata)."""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with _get_connection() as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO documents (user_id, filename, upload_date, chunk_count) VALUES (?, ?, ?, ?)",
-                (user_id, filename, now, chunk_count)
+                """
+                INSERT OR REPLACE INTO documents 
+                (user_id, filename, upload_date, chunk_count, drive_file_id, version, modified_time) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (user_id, filename, now, chunk_count, drive_file_id, version, modified_time)
             )
             conn.commit()
     except Exception as e:
         logger.error(f"Failed to save document metadata: {e}")
 
 
-def load_document_meta(user_id: str) -> List[Dict[str, Any]]:
-    """Load all document metadata for a specific user."""
+def load_document_meta(user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Load document metadata (if user_id is provided, filter by user; if None or 'all', load all)."""
     try:
         with _get_connection() as conn:
-            rows = conn.execute(
-                "SELECT filename, upload_date, chunk_count FROM documents WHERE user_id = ? ORDER BY upload_date DESC",
-                (user_id,)
-            ).fetchall()
+            if not user_id or user_id == "all":
+                rows = conn.execute(
+                    "SELECT filename, upload_date, chunk_count, drive_file_id, version, modified_time, user_id FROM documents ORDER BY upload_date DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT filename, upload_date, chunk_count, drive_file_id, version, modified_time, user_id FROM documents WHERE user_id = ? ORDER BY upload_date DESC",
+                    (user_id,)
+                ).fetchall()
         return [dict(row) for row in rows]
     except Exception as e:
         logger.error(f"Failed to load document metadata: {e}")

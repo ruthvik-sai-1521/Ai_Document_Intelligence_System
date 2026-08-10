@@ -1,0 +1,174 @@
+{
+    "individual_sources": {
+        "PDF": {
+            "status": "PASS",
+            "chunks": 1,
+            "retrieved": 1,
+            "confidence": -9.743966102600098,
+            "has_citation": true,
+            "answer_preview": "Insufficient data"
+        },
+        "TXT": {
+            "status": "PASS",
+            "chunks": 1,
+            "retrieved": 1,
+            "confidence": -8.152201652526855,
+            "has_citation": true,
+            "answer_preview": "Insufficient data"
+        },
+        "DOCX": {
+            "status": "PASS",
+            "chunks": 1,
+            "retrieved": 1,
+            "confidence": 1.9333781003952026,
+            "has_citation": true,
+            "answer_preview": "**Answer:**\nThe financial strategy for 2026 includes a projected Q4 net revenue growth target of 35 percent year over year [Document 1].\n\n**Sources:**"
+        },
+        "PPTX": {
+            "status": "PASS",
+            "chunks": 1,
+            "retrieved": 1,
+            "confidence": 5.075437068939209,
+            "has_citation": true,
+            "answer_preview": "**Answer:**\nThe product roadmap includes the launch of the Enterprise Multi-Source RAG Platform in November 2026 [Document 1].\n\n**Sources:**\n- **[Docu"
+        },
+        "XLSX": {
+            "status": "PASS",
+            "chunks": 2,
+            "retrieved": 1,
+            "confidence": -0.9207095503807068,
+            "has_citation": true,
+            "answer_preview": "Insufficient data"
+        },
+        "CSV": {
+            "status": "PASS",
+            "chunks": 2,
+            "retrieved": 1,
+            "confidence": -4.461426258087158,
+            "has_citation": true,
+            "answer_preview": "Insufficient data"
+        },
+        "Markdown": {
+            "status": "PASS",
+            "chunks": 1,
+            "retrieved": 2,
+            "confidence": -11.332815170288086,
+            "has_citation": false,
+            "answer_preview": "Insufficient data"
+        },
+        "HTML": {
+            "status": "PASS",
+            "chunks": 1,
+            "retrieved": 2,
+            "confidence": -11.397161483764648,
+            "has_citation": true,
+            "answer_preview": "Insufficient data"
+        },
+        "Images (OCR)": {
+            "status": "PASS",
+            "chunks": 1,
+            "retrieved": 1,
+            "confidence": -4.004252910614014,
+            "has_citation": false,
+            "answer_preview": "Insufficient data"
+        },
+        "Scanned PDF": {
+            "status": "PASS",
+            "chunks": 1,
+            "retrieved": 1,
+            "confidence": -4.020959854125977,
+            "has_citation": false,
+            "answer_preview": "Insufficient data"
+        },
+        "Website": {
+            "status": "PASS",
+            "chunks": 1,
+            "confidence": 5.902499198913574,
+            "has_citation": true,
+            "answer_preview": "**Answer:**\nThe Example Domain is described as a domain for use in documentation examples without needing permission [Document 1].\n\n**Sources:**\n- **["
+        },
+        "GitHub": {
+            "status": "PASS",
+            "chunks": 3,
+            "confidence": -0.16977554559707642,
+            "has_citation": true,
+            "answer_preview": "Insufficient data"
+        },
+        "YouTube": {
+            "status": "PASS",
+            "chunks": 1,
+            "confidence": -4.166396617889404,
+            "has_citation": true,
+            "answer_preview": "Insufficient data"
+        }
+    },
+    "mixed_sources": {
+        "PDF + Website": {
+            "status": "PARTIAL",
+            "confidence": -2.1925342082977295,
+            "matched_targets": [
+                false,
+                true
+            ],
+            "answer_preview": "Insufficient data",
+            "retrieved_list": [
+                "https://example.com"
+            ]
+        },
+        "GitHub + YouTube": {
+            "status": "PASS",
+            "confidence": -6.8046441078186035,
+            "matched_targets": [
+                true,
+                true
+            ],
+            "answer_preview": "Insufficient data",
+            "retrieved_list": [
+                "https://github.com/octocat/Spoon-Knife/blob/main/README.md",
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            ]
+        },
+        "OCR + DOCX": {
+            "status": "PARTIAL",
+            "confidence": -5.6411943435668945,
+            "matched_targets": [
+                true,
+                false
+            ],
+            "answer_preview": "Insufficient data",
+            "retrieved_list": [
+                "receipt_ocr.png"
+            ]
+        },
+        "CSV + Website": {
+            "status": "PASS",
+            "confidence": -4.101430892944336,
+            "matched_targets": [
+                true,
+                true
+            ],
+            "answer_preview": "Insufficient data",
+            "retrieved_list": [
+                "https://example.com",
+                "employee_directory.csv"
+            ]
+        },
+        "YouTube + PDF": {
+            "status": "PARTIAL",
+            "confidence": -11.471517562866211,
+            "matched_targets": [
+                true,
+                false
+            ],
+            "answer_preview": "Insufficient data",
+            "retrieved_list": [
+                "support_kb.html",
+                "https://example.com",
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "https://github.com/octocat/Spoon-Knife/blob/main/index.html",
+                "finance_strategy.docx"
+            ]
+        }
+    },
+    "timestamp": "2026-08-10 19:48:18"
+}

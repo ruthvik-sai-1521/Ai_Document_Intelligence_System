@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from src.embeddings.base import BaseEmbedding
 from src.embeddings.huggingface import HuggingFaceEmbedding
+from src.core.config import EMBEDDING_MODEL_NAME
 from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -13,7 +14,7 @@ class EmbeddingManager:
     """
     A comprehensive reusable module for generating embeddings and managing the FAISS vector store.
     """
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", index_path: Optional[Path] = None, chunks_path: Optional[Path] = None, embedding_engine: Optional[BaseEmbedding] = None):
+    def __init__(self, model_name: str = EMBEDDING_MODEL_NAME, index_path: Optional[Path] = None, chunks_path: Optional[Path] = None, embedding_engine: Optional[BaseEmbedding] = None):
         logger.info(f"Initializing EmbeddingManager...")
         if embedding_engine:
             self.embedding_engine = embedding_engine

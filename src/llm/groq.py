@@ -1,3 +1,4 @@
+import time
 import requests
 from src.llm.base import BaseLLM
 from src.core.config import GROQ_API_KEY
@@ -16,7 +17,7 @@ class GroqLLM(BaseLLM):
         self.api_key = GROQ_API_KEY
 
     def generate(self, prompt: str) -> str:
-        """Generate response from Groq completions REST endpoint."""
+        """Generate response from Groq completions REST endpoint with rate-limit retries."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -31,22 +32,36 @@ class GroqLLM(BaseLLM):
             "max_tokens": 2048
         }
         
-        try:
-            logger.info("Generating response via Groq API...")
-            response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=60)
-            response.raise_for_status()
-            
-            data = response.json()
-            text = data["choices"][0]["message"]["content"]
-            return text
-            
-        except requests.exceptions.HTTPError as e:
+        max_retries = 3
+        backoff = 5.0
+        for attempt in range(max_retries):
             try:
-                error_msg = response.json().get("error", {}).get("message", str(e))
-            except Exception:
-                error_msg = str(e)
-            logger.error(f"Groq API HTTP Error: {error_msg}")
-            return f"Error generating response: {error_msg}"
-        except Exception as e:
-            logger.error(f"Error generating response: {str(e)}")
-            return f"Error generating response: {str(e)}"
+                logger.info(f"Generating response via Groq API (Attempt {attempt+1}/{max_retries})...")
+                response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=60)
+                if response.status_code == 429 and attempt < max_retries - 1:
+                    logger.warning(f"Groq API Rate limit hit (429). Retrying in {backoff}s...")
+                    time.sleep(backoff)
+                    backoff *= 2.0
+                    continue
+                    
+                response.raise_for_status()
+                
+                data = response.json()
+                text = data["choices"][0]["message"]["content"]
+                return text
+                
+            except requests.exceptions.HTTPError as e:
+                if response.status_code == 429 and attempt < max_retries - 1:
+                    logger.warning(f"Groq API HTTP 429 Rate limit hit. Retrying in {backoff}s...")
+                    time.sleep(backoff)
+                    backoff *= 2.0
+                    continue
+                try:
+                    error_msg = response.json().get("error", {}).get("message", str(e))
+                except Exception:
+                    error_msg = str(e)
+                logger.error(f"Groq API HTTP Error: {error_msg}")
+                return f"Error generating response: {error_msg}"
+            except Exception as e:
+                logger.error(f"Error generating response: {str(e)}")
+                return f"Error generating response: {str(e)}"
