@@ -1,9 +1,14 @@
 from typing import List, Dict, Any, Optional
 import numpy as np
 import re
-from retrieval.keyword_search import KeywordSearch
-from core.embedding_manager import EmbeddingManager
-from core.logger import setup_logger
+try:
+    from src.retrieval.keyword_search import KeywordSearch
+    from src.core.embedding_manager import EmbeddingManager
+    from src.core.logger import setup_logger
+except ImportError:
+    from retrieval.keyword_search import KeywordSearch
+    from core.embedding_manager import EmbeddingManager
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -31,14 +36,14 @@ class HybridRetriever:
         merged_chunks = {}
 
         for rank, res in enumerate(semantic_results):
-            text = res['text']
+            text = res.get('text', '')
             if text not in rrf_scores:
                 rrf_scores[text] = 0.0
                 merged_chunks[text] = res.copy()
             rrf_scores[text] += 1.0 / (k + rank + 1)
 
         for rank, res in enumerate(keyword_results):
-            text = res['text']
+            text = res.get('text', '')
             if text not in rrf_scores:
                 rrf_scores[text] = 0.0
                 merged_chunks[text] = res.copy()
@@ -183,13 +188,8 @@ class HybridRetriever:
         
         for chunk in chunks[1:max_k]:
             score = chunk.get(score_key, 0.0)
-            if score_key == "rerank_score":
-                # For cross-encoder logit scores (e.g. logits scale), a margin of 3.0 represents a significant drop-off
-                if top_score - score > 3.0:
-                    break
-            else:
-                if top_score - score > score_margin:
-                    break
+            if top_score - score > score_margin:
+                break
             retained_chunks.append(chunk)
             
         return retained_chunks
@@ -199,8 +199,8 @@ class HybridRetriever:
         query: str,
         top_k: int = 5,
         retrieve_k: int = 15,
-        user_id: str = None,
-        filters: Dict[str, Any] = None,
+        user_id: str | None = None,
+        filters: Dict[str, Any] | None = None,
         use_reranker: bool = True,
         use_mmr: bool = True,
         use_compression: bool = True,
@@ -221,10 +221,10 @@ class HybridRetriever:
             
         # 1. Retrieve candidates from Vector search (FAISS)
         # Note: We fetch retrieve_k * 3 items to allow ample candidates for metadata filtering
-        faiss_candidates = self.embedding_manager.search(query, top_k=retrieve_k * 3, user_id=None)
+        faiss_candidates = self.embedding_manager.search(query, top_k=retrieve_k * 3, user_id=user_id)
         
         # 2. Retrieve candidates from Lexical search (BM25)
-        bm25_candidates = self.keyword_search.search(query, top_k=retrieve_k * 3, user_id=None)
+        bm25_candidates = self.keyword_search.search(query, top_k=retrieve_k * 3, user_id=user_id)
         
         # 3. Apply Metadata Filtering to both candidate streams
         filtered_faiss = []
@@ -232,7 +232,9 @@ class HybridRetriever:
             meta = c.get("metadata", {})
             match = True
             for k, v in filters.items():
-                if meta.get(k) != v:
+                chunk_val = meta.get(k)
+                # Exclude only if chunk has explicit owner and it doesn't match filter
+                if chunk_val is not None and chunk_val != v:
                     match = False
                     break
             if match:
@@ -245,7 +247,8 @@ class HybridRetriever:
             meta = c.get("metadata", {})
             match = True
             for k, v in filters.items():
-                if meta.get(k) != v:
+                chunk_val = meta.get(k)
+                if chunk_val is not None and chunk_val != v:
                     match = False
                     break
             if match:
@@ -265,9 +268,12 @@ class HybridRetriever:
         if use_reranker:
             try:
                 pairs = [[query, chunk["text"]] for chunk in unique_chunks]
-                scores = self.cross_encoder.predict(pairs)
-                for idx, score in enumerate(scores):
-                    unique_chunks[idx]["rerank_score"] = float(score)
+                raw_scores = self.cross_encoder.predict(pairs)
+                for idx, score in enumerate(raw_scores):
+                    # Sigmoid transformation converts raw logits into [0.0, 1.0] probability scale
+                    prob = float(1.0 / (1.0 + np.exp(-float(score))))
+                    unique_chunks[idx]["rerank_score"] = prob
+                    unique_chunks[idx]["raw_rerank_score"] = float(score)
                 unique_chunks = sorted(unique_chunks, key=lambda x: x["rerank_score"], reverse=True)
             except Exception as e:
                 logger.error(f"Cross-Encoder re-ranking failed, falling back to cosine similarity: {e}")

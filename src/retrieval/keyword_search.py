@@ -1,8 +1,11 @@
 from rank_bm25 import BM25Okapi
 import pickle
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
-from src.core.logger import setup_logger
+try:
+    from src.core.logger import setup_logger
+except ImportError:
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -70,7 +73,7 @@ class KeywordSearch:
         else:
             logger.warning(f"No chunks found for document {filename} in BM25.")
 
-    def search(self, query: str, top_k: int = 5, user_id: str = None) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: int = 5, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Search the BM25 index for the most relevant chunks, filtering by user_id."""
         if self.bm25 is None or not self.chunks:
             logger.warning("BM25 index is empty during search.")

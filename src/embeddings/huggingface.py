@@ -25,6 +25,9 @@ class HuggingFaceEmbedding(BaseEmbedding):
         
     def get_embedding_dimension(self) -> int:
         """Helper to get dimension size from model."""
+        dim = None
         if hasattr(self.model, "get_embedding_dimension"):
-            return self.model.get_embedding_dimension()
-        return self.model.get_sentence_embedding_dimension()
+            dim = self.model.get_embedding_dimension()
+        if dim is None:
+            dim = self.model.get_sentence_embedding_dimension()
+        return int(dim or 384)

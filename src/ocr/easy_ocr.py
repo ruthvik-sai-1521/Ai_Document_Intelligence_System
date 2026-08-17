@@ -1,21 +1,31 @@
 import io
-import easyocr
+try:
+    import easyocr
+except ImportError:
+    easyocr = None
 import numpy as np
 from PIL import Image
-from typing import List, Dict, Any
-from src.ocr.base import BaseOCREngine
-from src.core.logger import setup_logger
+from typing import List, Dict, Any, Optional
+try:
+    from src.ocr.base import BaseOCREngine
+    from src.core.logger import setup_logger
+except ImportError:
+    from ocr.base import BaseOCREngine
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 class EasyOCREngine(BaseOCREngine):
     _readers_cache = {}
 
-    def __init__(self, languages: List[str] = None):
+    def __init__(self, languages: Optional[List[str]] = None):
         if languages is None:
             languages = ['en']
         cache_key = tuple(sorted(languages))
-        if cache_key in EasyOCREngine._readers_cache:
+        if easyocr is None:
+            logger.warning("easyocr module is not installed. OCR capability disabled.")
+            self.reader = None
+        elif cache_key in EasyOCREngine._readers_cache:
             logger.debug(f"Reusing cached EasyOCREngine for languages: {languages}")
             self.reader = EasyOCREngine._readers_cache[cache_key]
         else:

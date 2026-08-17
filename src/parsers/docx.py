@@ -1,9 +1,17 @@
 import io
-import docx
-from datetime import datetime
 from typing import List, Dict, Any
-from src.parsers.base import BaseParser
-from src.core.logger import setup_logger
+from datetime import datetime
+try:
+    import docx
+except ImportError:
+    docx = None
+
+try:
+    from src.parsers.base import BaseParser
+    from src.core.logger import setup_logger
+except ImportError:
+    from parsers.base import BaseParser
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 

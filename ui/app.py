@@ -417,20 +417,26 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-    st.markdown("""
+    from core.config import GROQ_API_KEY, GEMINI_API_KEY
+    if GROQ_API_KEY:
+        api_status = '<div style="color: #10b981; font-weight: 600; font-size: 0.8rem;">🟢 Groq API Connected</div>'
+    elif GEMINI_API_KEY:
+        api_status = '<div style="color: #10b981; font-weight: 600; font-size: 0.8rem;">🟢 Gemini API Connected</div>'
+    else:
+        api_status = '<div style="color: #ef4444; font-weight: 600; font-size: 0.8rem;">🔴 No LLM Key Set</div>'
+
+    st.markdown(f"""
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
             <span style="font-size: 2rem;">🧠</span>
             <div>
                 <h2 style="margin: 0; font-size: 1.4rem;">DocuMind AI</h2>
-                <div class="status-pill">
-                    <div class="status-dot"></div>
-                    Groq API Connected
-                </div>
+                {api_status}
             </div>
         </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
+
 
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📂 Files", "🌐 Web", "🐙 GitHub", "▶️ YouTube", "📥 Google Drive", "🛢️ Databases"])
     
@@ -609,7 +615,8 @@ with st.sidebar:
                         yt_docs = yt_connector.fetch_documents()
 
                         if not yt_docs:
-                            st.warning("Could not fetch transcript for the provided YouTube video(s).")
+                            st.warning("⚠️ Could not fetch transcript for the provided YouTube video(s). Please verify that the video is public and contains subtitles or auto-generated captions.")
+
                         else:
                             processor = DocumentProcessor()
                             all_yt_chunks = []

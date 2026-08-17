@@ -1,14 +1,20 @@
+from typing import Optional
 import requests
-from src.llm.base import BaseLLM
-from src.core.config import GEMINI_API_KEY
-from src.core.logger import setup_logger
+try:
+    from src.llm.base import BaseLLM
+    from src.core.config import GEMINI_API_KEY
+    from src.core.logger import setup_logger
+except ImportError:
+    from llm.base import BaseLLM
+    from core.config import GEMINI_API_KEY
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
 class GeminiLLM(BaseLLM):
-    def __init__(self, model_name: str = "gemini-1.5-flash", api_key: str = None):
+    def __init__(self, model_name: str = "gemini-1.5-flash", api_key: Optional[str] = None):
         logger.info(f"Initializing GeminiLLM client: {model_name}")
         self.api_key = api_key or GEMINI_API_KEY
         if not self.api_key:
@@ -51,10 +57,13 @@ class GeminiLLM(BaseLLM):
             return "Error generating response: Empty candidate returned by Gemini API."
             
         except requests.exceptions.HTTPError as e:
-            try:
-                error_msg = response.json().get("error", {}).get("message", str(e))
-            except Exception:
-                error_msg = str(e)
+            res = e.response
+            error_msg = str(e)
+            if res is not None:
+                try:
+                    error_msg = res.json().get("error", {}).get("message", str(e))
+                except Exception:
+                    pass
             logger.error(f"Gemini API HTTP Error: {error_msg}")
             return f"Error generating response: {error_msg}"
         except Exception as e:

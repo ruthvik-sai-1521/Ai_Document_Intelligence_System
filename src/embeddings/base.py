@@ -28,3 +28,8 @@ class BaseEmbedding(ABC):
             A 1D numpy array containing float32 embedding.
         """
         pass
+
+    @abstractmethod
+    def get_embedding_dimension(self) -> int:
+        """Return dimension of the embedding model."""
+        pass

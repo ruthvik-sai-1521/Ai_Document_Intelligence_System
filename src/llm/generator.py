@@ -1,14 +1,21 @@
-from typing import List, Dict, Any
-from llm.base import BaseLLM
-from llm.groq import GroqLLM
-from llm.gemini import GeminiLLM
-from core.config import GROQ_API_KEY, GEMINI_API_KEY
-from core.logger import setup_logger
+from typing import List, Dict, Any, Optional
+try:
+    from src.llm.base import BaseLLM
+    from src.llm.groq import GroqLLM
+    from src.llm.gemini import GeminiLLM
+    from src.core.config import GROQ_API_KEY, GEMINI_API_KEY
+    from src.core.logger import setup_logger
+except ImportError:
+    from llm.base import BaseLLM
+    from llm.groq import GroqLLM
+    from llm.gemini import GeminiLLM
+    from core.config import GROQ_API_KEY, GEMINI_API_KEY
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 class LLMGenerator:
-    def __init__(self, model_name: str = None, provider: str = None, llm_engine: BaseLLM = None):
+    def __init__(self, model_name: Optional[str] = None, provider: Optional[str] = None, llm_engine: Optional[BaseLLM] = None):
         """
         Initialize the LLM Generator wrapper.
         
@@ -22,7 +29,7 @@ class LLMGenerator:
         elif provider == "gemini" or (not GROQ_API_KEY and GEMINI_API_KEY):
             self.llm_engine = GeminiLLM(model_name=model_name or "gemini-1.5-flash")
         else:
-            self.llm_engine = GroqLLM(model_name=model_name or "llama-3.1-8b-instant")
+            self.llm_engine = GroqLLM(model_name=model_name or "llama-3.3-70b-versatile")
 
     def generate_from_prompt(self, prompt: str) -> str:
         """
@@ -72,7 +79,7 @@ STANDALONE REWRITTEN QUERY:"""
         self,
         query: str,
         retrieved_chunks: List[Dict[str, Any]],
-        history: List[Dict[str, Any]] = None
+        history: Optional[List[Dict[str, Any]]] = None
     ) -> str:
         """
         RAG-specific answer generator with strict anti-hallucination prompting and context retention.

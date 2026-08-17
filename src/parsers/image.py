@@ -1,16 +1,23 @@
 from datetime import datetime
 from typing import List, Dict, Any
-from parsers.base import BaseParser
-from ocr.easy_ocr import EasyOCREngine
-from core.logger import setup_logger
+try:
+    from src.parsers.base import BaseParser
+    from src.ocr.easy_ocr import EasyOCREngine
+    from src.core.logger import setup_logger
+except ImportError:
+    from parsers.base import BaseParser
+    from ocr.easy_ocr import EasyOCREngine
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 class ImageParser(BaseParser):
     def __init__(self, ocr_engine=None):
         if ocr_engine is None:
-            # Reusable OCR Engine instance
-            from core.config import OCR_LANGUAGES
+            try:
+                from src.core.config import OCR_LANGUAGES
+            except ImportError:
+                from core.config import OCR_LANGUAGES
             self.ocr_engine = EasyOCREngine(languages=OCR_LANGUAGES)
         else:
             self.ocr_engine = ocr_engine

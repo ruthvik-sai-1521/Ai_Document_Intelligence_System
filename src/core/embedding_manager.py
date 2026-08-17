@@ -3,10 +3,16 @@ import numpy as np
 import pickle
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from src.embeddings.base import BaseEmbedding
-from src.embeddings.huggingface import HuggingFaceEmbedding
-from src.core.config import EMBEDDING_MODEL_NAME
-from src.core.logger import setup_logger
+try:
+    from src.embeddings.base import BaseEmbedding
+    from src.embeddings.huggingface import HuggingFaceEmbedding
+    from src.core.config import EMBEDDING_MODEL_NAME
+    from src.core.logger import setup_logger
+except ImportError:
+    from embeddings.base import BaseEmbedding
+    from embeddings.huggingface import HuggingFaceEmbedding
+    from core.config import EMBEDDING_MODEL_NAME
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -91,7 +97,7 @@ class EmbeddingManager:
         if save and self.index_path and self.chunks_path:
             self.save_index()
 
-    def search(self, query: str, top_k: int = 5, user_id: str = None) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: int = 5, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Convert a query to an embedding and search the FAISS index, filtering by user_id.
         """

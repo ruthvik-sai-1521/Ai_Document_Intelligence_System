@@ -1,16 +1,29 @@
-from parsers.base import BaseParser
-from parsers.pdf import PDFParser
-from parsers.txt import TXTParser
-from parsers.docx import DocxParser
-from parsers.pptx import PptxParser
-from parsers.xlsx import XlsxParser
-from parsers.csv import CsvParser
-from parsers.markdown import MarkdownParser
-from parsers.html import HtmlParser
-from parsers.image import ImageParser
-# pyrefly: ignore [missing-import]
-from parsers.structured import StructuredDataParser
-from core.logger import setup_logger
+try:
+    from src.parsers.base import BaseParser
+    from src.parsers.pdf import PDFParser
+    from src.parsers.txt import TXTParser
+    from src.parsers.docx import DocxParser
+    from src.parsers.pptx import PptxParser
+    from src.parsers.xlsx import XlsxParser
+    from src.parsers.csv import CsvParser
+    from src.parsers.markdown import MarkdownParser
+    from src.parsers.html import HtmlParser
+    from src.parsers.image import ImageParser
+    from src.parsers.structured import StructuredDataParser
+    from src.core.logger import setup_logger
+except ImportError:
+    from parsers.base import BaseParser
+    from parsers.pdf import PDFParser
+    from parsers.txt import TXTParser
+    from parsers.docx import DocxParser
+    from parsers.pptx import PptxParser
+    from parsers.xlsx import XlsxParser
+    from parsers.csv import CsvParser
+    from parsers.markdown import MarkdownParser
+    from parsers.html import HtmlParser
+    from parsers.image import ImageParser
+    from parsers.structured import StructuredDataParser
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 

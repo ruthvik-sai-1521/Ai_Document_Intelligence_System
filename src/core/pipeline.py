@@ -1,9 +1,15 @@
 import time
 from typing import Dict, Any, Tuple
-from retrieval.retriever import HybridRetriever
-from llm.generator import LLMGenerator
-from core.logger import setup_logger
-from core.chat_history import load_session_history
+try:
+    from src.retrieval.retriever import HybridRetriever
+    from src.llm.generator import LLMGenerator
+    from src.core.logger import setup_logger
+    from src.core.chat_history import load_session_history
+except ImportError:
+    from retrieval.retriever import HybridRetriever
+    from llm.generator import LLMGenerator
+    from core.logger import setup_logger
+    from core.chat_history import load_session_history
 
 logger = setup_logger(__name__)
 
@@ -20,7 +26,7 @@ class RAGPipeline:
         self.max_cache_size = max_cache_size
         self._query_cache = {}
 
-    def run(self, query: str, user_id: str = None, session_id: str = 'default') -> Tuple[str, Dict[str, Any]]:
+    def run(self, query: str, user_id: str | None = None, session_id: str = 'default') -> Tuple[str, Dict[str, Any]]:
         """
         Executes the full RAG pipeline scoped to a specific user and session with conversational memory and performance metrics.
         """
@@ -83,7 +89,7 @@ class RAGPipeline:
 
             # Calculate Confidence Score using the top rerank score
             best_score = retrieved_chunks[0].get('rerank_score', 0.0)
-            logger.info(f"Query confidence score: {best_score:.4f} (Threshold: {self.confidence_threshold})")
+            logger.info(f"Query confidence score: {best_score:.4f} ({best_score * 100:.1f}%) (Threshold: {self.confidence_threshold})")
 
             # Check for low confidence
             total_latency = time.perf_counter() - start_total

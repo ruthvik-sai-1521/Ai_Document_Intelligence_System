@@ -5,8 +5,12 @@ import numpy as np
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-from core.pipeline import RAGPipeline
-from core.logger import setup_logger
+try:
+    from src.core.pipeline import RAGPipeline
+    from src.core.logger import setup_logger
+except ImportError:
+    from core.pipeline import RAGPipeline
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -65,6 +69,7 @@ class RAGEvaluator:
         query_emb = self.pipeline.retriever.embedding_manager.generate_embeddings([query])[0]
         chunk_texts = [s.get("text", "") for s in sources]
         
+        chunk_embs = []
         if chunk_texts:
             chunk_embs = self.pipeline.retriever.embedding_manager.generate_embeddings(chunk_texts)
             chunk_sims = [self._cosine_similarity(query_emb, c_emb) for c_emb in chunk_embs]
@@ -143,6 +148,7 @@ class RAGEvaluator:
         
         all_metrics = []
         for case in self.benchmark_dataset:
+            # pyrefly: ignore [bad-argument-type]
             m = self.evaluate_single_query(case["query"], case["expected_keywords"])
             all_metrics.append(m)
 

@@ -1,9 +1,14 @@
 from pathlib import Path
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 import re
-from parsers.factory import ParserFactory
-from core.config import CHUNK_SIZE, CHUNK_OVERLAP
-from core.logger import setup_logger
+try:
+    from src.parsers.factory import ParserFactory
+    from src.core.config import CHUNK_SIZE, CHUNK_OVERLAP
+    from src.core.logger import setup_logger
+except ImportError:
+    from parsers.factory import ParserFactory
+    from core.config import CHUNK_SIZE, CHUNK_OVERLAP
+    from core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -32,7 +37,7 @@ class DocumentProcessor:
             return list(pages)[0]
         return sorted(list(pages))
 
-    def smart_chunking(self, pages: List[Dict[str, Any]], source_id: str, user_id: str = None) -> List[Dict[str, Any]]:
+    def smart_chunking(self, pages: List[Dict[str, Any]], source_id: str, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Dynamically chunk text (400-800 words), preserving paragraphs and sentences.
         Adds source, page/slide/sheet/row, timestamp, OCR metadata, and user_id metadata.
@@ -67,7 +72,7 @@ class DocumentProcessor:
                     if item["ocr_metadata"]:
                         ocr_meta_val.extend(item["ocr_metadata"])
                         
-                meta = {
+                meta: Dict[str, Any] = {
                     "source": source_id
                 }
                 if pages_set:
@@ -193,7 +198,7 @@ class DocumentProcessor:
         logger.info(f"Chunked {source_id} into {len(chunks)} chunks.")
         return chunks
 
-    def process_document(self, file_path: str, user_id: str = None) -> List[Dict[str, Any]]:
+    def process_document(self, file_path: str, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Process a single document from extraction to chunking."""
         path = Path(file_path)
         try:
@@ -208,7 +213,7 @@ class DocumentProcessor:
         chunks = self.smart_chunking(pages, source_id=path.name, user_id=user_id)
         return chunks
 
-    def process_documents(self, file_paths: List[str], user_id: str = None) -> List[Dict[str, Any]]:
+    def process_documents(self, file_paths: List[str], user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Process multiple documents and combine chunks."""
         all_chunks = []
         for path in file_paths:
@@ -222,8 +227,8 @@ class DocumentProcessor:
         raw_data: bytes,
         source_name: str,
         extension: str,
-        user_id: str = None,
-        extra_metadata: dict = None
+        user_id: Optional[str] = None,
+        extra_metadata: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
         Process in-memory raw data directly using factory parsers and run smart chunking.
