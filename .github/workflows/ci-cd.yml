@@ -72,5 +72,5 @@ jobs:
           if [ -n "$RENDER_DEPLOY_HOOK" ]; then
             curl -X POST "$RENDER_DEPLOY_HOOK"
           else
-            echo "RENDER_DEPLOY_HOOK secret is not configured. Skipping Render deployment."
+            echo "RENDER_DEPLOY_HOOK is not configured. Skipping Render deployment."
           fi
