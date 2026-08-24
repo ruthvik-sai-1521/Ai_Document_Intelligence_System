@@ -1137,7 +1137,9 @@ with tab_chat:
 
                 start = time.time()
                 try:
-                    answer, meta = st.session_state.pipeline.run(query, user_id=st.session_state.user_id, session_id=st.session_state.session_id)
+                    cur_role = (st.session_state.current_user or {}).get("role", "user")
+                    query_user_id = None if cur_role == "admin" else st.session_state.user_id
+                    answer, meta = st.session_state.pipeline.run(query, user_id=query_user_id, session_id=st.session_state.session_id)
                 except Exception as e:
                     logger.error(f"Pipeline execution error: {e}")
                     answer = f"Error processing query: {str(e)}"
