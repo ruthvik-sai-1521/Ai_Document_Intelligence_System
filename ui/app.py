@@ -335,8 +335,10 @@ def highlight_text(text: str, query: str) -> str:
     pattern = re.compile(f"({'|'.join(words)})", re.IGNORECASE)
     return pattern.sub(r"<mark style='background:#fde047; color:black; border-radius:2px; padding:0 2px;'>\1</mark>", text)
 
+if "keyword_search" not in st.session_state:
+    st.session_state.keyword_search = keyword_search
 if "retriever" not in st.session_state:
-    st.session_state.retriever = HybridRetriever(embedding_manager, keyword_search)
+    st.session_state.retriever = HybridRetriever(embedding_manager, st.session_state.keyword_search)
 if "pipeline" not in st.session_state:
     st.session_state.pipeline = RAGPipeline(st.session_state.retriever, llm)
 
