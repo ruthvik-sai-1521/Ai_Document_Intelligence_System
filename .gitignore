@@ -51,6 +51,6 @@ Thumbs.db
 desktop.ini
 
 # ===========================
-# Streamlit Cache
+# Streamlit Secrets - NEVER commit these
 # ===========================
-.streamlit/
+.streamlit/secrets.toml
