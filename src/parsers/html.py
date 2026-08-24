@@ -25,9 +25,9 @@ class HtmlParser(BaseParser):
                 r'social-links|footer-menu|nav-menu|cookie-consent|banner|popup', 
                 re.I
             )
-            for element in soup.find_all(attrs={"class": pattern}):
+            for element in soup.find_all(class_=pattern):
                 element.decompose()
-            for element in soup.find_all(attrs={"id": pattern}):
+            for element in soup.find_all(id=pattern):
                 element.decompose()
                 
             # Extract clean paragraphs text(separator="\n")

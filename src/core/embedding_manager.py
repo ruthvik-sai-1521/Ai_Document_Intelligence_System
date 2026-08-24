@@ -16,25 +16,28 @@ except ImportError:
 
 logger = setup_logger(__name__)
 
+DEFAULT_MODEL_NAME = EMBEDDING_MODEL_NAME or "all-MiniLM-L6-v2"
+
 class EmbeddingManager:
     """
     A comprehensive reusable module for generating embeddings and managing the FAISS vector store.
     """
-    def __init__(self, model_name: str = EMBEDDING_MODEL_NAME, index_path: Optional[Path] = None, chunks_path: Optional[Path] = None, embedding_engine: Optional[BaseEmbedding] = None):
+    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, index_path: Optional[Path] = None, chunks_path: Optional[Path] = None, embedding_engine: Optional[BaseEmbedding] = None):
         logger.info(f"Initializing EmbeddingManager...")
         if embedding_engine:
             self.embedding_engine = embedding_engine
         else:
             self.embedding_engine = HuggingFaceEmbedding(model_name=model_name)
         # Automatically get dimension from the embedding engine
+        self.model_name = model_name
         self.dimension = self.embedding_engine.get_embedding_dimension()
         
         self.index_path = index_path
         self.chunks_path = chunks_path
         
-        self.index = None
-        self.chunks = []
-        self._embedding_cache = {}
+        self.index: Optional[faiss.Index] = None
+        self.chunks: List[Dict[str, Any]] = []
+        self._embedding_cache: Dict[str, np.ndarray] = {}
         
         # Load existing index if paths are provided and exist
         if self.index_path and self.chunks_path and self.index_path.exists() and self.chunks_path.exists():
@@ -86,10 +89,14 @@ class EmbeddingManager:
             logger.warning("No chunks provided to add.")
             return
 
+        if self.index is None:
+            self._initialize_empty_index()
+
         texts = [chunk['text'] for chunk in chunks]
         embeddings_np = self.generate_embeddings(texts)
         
-        self.index.add(embeddings_np)
+        if self.index is not None:
+            self.index.add(embeddings_np)
         self.chunks.extend(chunks)
         
         logger.info(f"Added {len(chunks)} chunks to FAISS index. Total chunks: {len(self.chunks)}.")
@@ -164,8 +171,8 @@ class EmbeddingManager:
         target_index = index_path or self.index_path
         target_chunks = chunks_path or self.chunks_path
         
-        if not target_index or not target_chunks:
-            logger.error("Cannot save: Index path or chunks path not specified.")
+        if not target_index or not target_chunks or self.index is None:
+            logger.error("Cannot save: Index path, chunks path, or index is not initialized.")
             return
 
         # Ensure directories exist
@@ -179,15 +186,30 @@ class EmbeddingManager:
         logger.info(f"Successfully saved FAISS index and chunks.")
 
     def load_index(self, index_path: Optional[Path] = None, chunks_path: Optional[Path] = None):
-        """Load the FAISS index and chunk metadata from disk."""
+        """Load the FAISS index and chunk metadata from disk, verifying vector dimensions."""
         target_index = index_path or self.index_path
         target_chunks = chunks_path or self.chunks_path
 
         if target_index and target_index.exists() and target_chunks and target_chunks.exists():
-            logger.info("Loading existing FAISS index and chunks from disk (Memory-Mapped)...")
-            self.index = faiss.read_index(str(target_index), faiss.IO_FLAG_MMAP)
-            with open(target_chunks, "rb") as f:
-                self.chunks = pickle.load(f)
-            logger.info(f"Loaded successfully. Total chunks in index: {len(self.chunks)}")
+            logger.info("Loading existing FAISS index and chunks from disk...")
+            try:
+                loaded_index = faiss.read_index(str(target_index), faiss.IO_FLAG_MMAP)
+                if loaded_index.d != self.dimension:
+                    logger.warning(
+                        f"FAISS Index dimension mismatch! Loaded index has {loaded_index.d} dimensions, "
+                        f"but model '{self.model_name}' requires {self.dimension} dimensions. "
+                        f"Resetting to clean empty FAISS index..."
+                    )
+                    self._initialize_empty_index()
+                    return
+
+                self.index = loaded_index
+                with open(target_chunks, "rb") as f:
+                    self.chunks = pickle.load(f)
+                logger.info(f"Loaded successfully. Total chunks in index: {len(self.chunks)}")
+            except Exception as e:
+                logger.error(f"Failed to load FAISS index from disk ({e}). Initializing empty index...")
+                self._initialize_empty_index()
         else:
             logger.warning("Index or chunks file not found. Cannot load.")
+

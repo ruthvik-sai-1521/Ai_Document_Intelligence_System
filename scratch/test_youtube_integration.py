@@ -40,8 +40,9 @@ def run_youtube_verification():
 
     # 2. Test Connector Ingestion
     print("\n--- Fetching YouTube Transcript ---")
+    from typing import Dict, Any, List, cast
     connector = YouTubeConnector(urls=["https://www.youtube.com/watch?v=dQw4w9WgXcQ"])
-    docs = connector.fetch_documents()
+    docs: List[Dict[str, Any]] = connector.fetch_documents()
     
     if not docs:
         print("Note: Could not fetch live transcript for dQw4w9WgXcQ (might lack public English CC). Creating realistic synthetic transcript doc...")
@@ -58,17 +59,19 @@ def run_youtube_verification():
             }
         }]
 
-    doc = docs[0]
+    from typing import Dict, Any, List, cast
+
+    doc: Dict[str, Any] = docs[0]
     print(f"✓ Retrieved document for '{doc['metadata']['video_title']}'")
     assert doc["metadata"]["source_type"] == "youtube"
 
     # 3. Test Chunking & Timestamp Metadata Calculation
     processor = DocumentProcessor()
     chunks = processor.process_raw_data(
-        raw_data=doc["raw_data"],
-        source_name=doc["source"],
-        extension=doc["extension"],
-        extra_metadata=doc["metadata"]
+        raw_data=cast(bytes, doc["raw_data"]),
+        source_name=cast(str, doc["source"]),
+        extension=cast(str, doc["extension"]),
+        extra_metadata=cast(Dict[str, Any], doc["metadata"])
     )
     
     print(f"✓ Generated {len(chunks)} transcript chunk(s)")
@@ -104,11 +107,13 @@ def run_youtube_verification():
 
     print("\n--- RAG Pipeline Output ---")
     print(f"Confidence Score: {meta.get('confidence'):.4f}")
-    print(f"Retrieved Chunks: {len(meta.get('sources'))}")
+    sources = meta.get("sources")
+    sources_list = sources if isinstance(sources, list) else []
+    print(f"Retrieved Chunks: {len(sources_list)}")
     print(f"\nGenerated Answer Preview:\n{answer[:300]}")
 
-    assert len(meta.get("sources")) > 0, "No sources retrieved"
-    assert meta.get("sources")[0]["metadata"]["source_type"] == "youtube"
+    assert len(sources_list) > 0, "No sources retrieved"
+    assert sources_list[0]["metadata"]["source_type"] == "youtube"
 
     # Cleanup temp index files
     for p in [test_faiss_path, test_chunks_path, test_bm25_path]:

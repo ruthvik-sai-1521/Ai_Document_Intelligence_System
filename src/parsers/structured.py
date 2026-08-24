@@ -1,11 +1,7 @@
 import json
 from typing import List, Dict, Any
-try:
-    from src.parsers.base import BaseParser
-    from src.core.logger import setup_logger
-except ImportError:
-    from parsers.base import BaseParser
-    from core.logger import setup_logger
+from src.parsers.base import BaseParser
+from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 

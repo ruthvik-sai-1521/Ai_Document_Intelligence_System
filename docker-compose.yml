@@ -22,8 +22,7 @@ services:
       # Persistent storage volume mappings
       - ./data:/app/data
       - ./logs:/app/logs
-      - ./faiss_index:/app/faiss_index
-      - ./bm25_index:/app/bm25_index
+      - ./embeddings:/app/embeddings
     deploy:
       resources:
         reservations:
@@ -41,5 +40,4 @@ services:
 volumes:
   documind_data:
   documind_logs:
-  documind_faiss:
-  documind_bm25:
+  documind_embeddings:

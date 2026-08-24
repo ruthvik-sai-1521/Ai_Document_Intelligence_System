@@ -47,8 +47,10 @@ BINARY_EXTENSIONS = {
 }
 
 
+from typing import List, Dict, Any, Optional
+
 class GitHubConnector(BaseConnector):
-    def __init__(self, repo_url: str, branch: str = "main", token: str = None):
+    def __init__(self, repo_url: str, branch: str = "main", token: Optional[str] = None):
         """
         Args:
             repo_url: Full GitHub URL (https://github.com/owner/repo) or shorthand (owner/repo).
@@ -79,24 +81,43 @@ class GitHubConnector(BaseConnector):
         Downloads the repository as a ZIP archive and extracts supported files.
         Returns list of document dicts with raw_data, source, extension, and metadata.
         """
-        zip_url = f"https://github.com/{self.owner}/{self.repo}/archive/refs/heads/{self.branch}.zip"
-        logger.info(f"Downloading repository archive: {zip_url}")
+        branches_to_try = [self.branch]
+        if self.branch == "main" and "master" not in branches_to_try:
+            branches_to_try.append("master")
+        elif self.branch == "master" and "main" not in branches_to_try:
+            branches_to_try.append("main")
+
+        response = None
+        active_branch = self.branch
 
         headers = {"User-Agent": "DocuMind-Crawler/1.0"}
         if self.token:
             headers["Authorization"] = f"token {self.token}"
 
-        try:
-            response = requests.get(zip_url, headers=headers, timeout=60)
-            if response.status_code != 200:
-                raise RuntimeError(
-                    f"Failed to download repository archive. Status: {response.status_code}. "
-                    f"Check that the repository is public and the branch '{self.branch}' exists."
-                )
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Network error downloading repository: {e}")
+        for b in branches_to_try:
+            zip_url = f"https://github.com/{self.owner}/{self.repo}/archive/refs/heads/{b}.zip"
+            logger.info(f"Downloading repository archive ({self.owner}/{self.repo}, branch: {b}): {zip_url}")
+            try:
+                res = requests.get(zip_url, headers=headers, timeout=60)
+                if res.status_code == 200:
+                    response = res
+                    active_branch = b
+                    break
+                elif res.status_code == 404:
+                    logger.warning(f"Branch '{b}' not found for {self.owner}/{self.repo}. Trying fallback...")
+            except requests.exceptions.RequestException as e:
+                raise RuntimeError(f"Network error downloading repository: {e}")
 
-        logger.info(f"Archive downloaded ({len(response.content) / 1024:.1f} KB). Extracting files...")
+        if not response or response.status_code != 200:
+            status_str = str(response.status_code) if response else "Unknown"
+            raise RuntimeError(
+                f"Failed to download repository archive for {self.owner}/{self.repo}. Status: {status_str}. "
+                f"Check that the repository is public and branch '{self.branch}' (or master) exists."
+            )
+
+        self.branch = active_branch
+        logger.info(f"Archive downloaded ({len(response.content) / 1024:.1f} KB, branch '{active_branch}'). Extracting files...")
+
 
         documents = []
         zip_root_prefix = f"{self.repo}-{self.branch}/"

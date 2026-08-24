@@ -48,10 +48,10 @@ class MySQLDriver:
     def _get_connection(self) -> Any:
         import pymysql
         return pymysql.connect(
-            host=self.params.get("host", "localhost"),
-            user=self.params.get("user"),
-            password=self.params.get("password"),
-            database=self.params.get("database"),
+            host=str(self.params.get("host", "localhost")),
+            user=str(self.params.get("user") or ""),
+            password=str(self.params.get("password") or ""),
+            database=str(self.params.get("database") or ""),
             port=int(self.params.get("port", 3306)),
             charset='utf8mb4'
         )
@@ -170,7 +170,7 @@ class DatabaseConnector(BaseConnector):
     def __init__(self, db_type: str, config: Dict[str, Any]):
         self.db_type = db_type.lower()
         self.config = config
-        self.connector = None
+        self.connector: Optional[Any] = None
         
         if self.db_type == "sqlite":
             self.connector = SQLiteDriver(config.get("db_path", ""))
@@ -181,11 +181,15 @@ class DatabaseConnector(BaseConnector):
         else:
             raise ValueError(f"Unsupported database type: {db_type}")
 
-    def fetch_documents(self, selected_tables: List[str] = None) -> List[Dict[str, Any]]:
+    def fetch_documents(self, selected_tables: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
         Retrieves table schemas and rows, packaging them for the structured ingestion parser.
         """
         docs = []
+        if not self.connector:
+            logger.error("Database connector is not initialized.")
+            return []
+            
         try:
             tables = selected_tables if selected_tables else self.connector.get_tables()
         except Exception as e:

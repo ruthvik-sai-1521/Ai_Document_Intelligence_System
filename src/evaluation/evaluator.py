@@ -148,8 +148,10 @@ class RAGEvaluator:
         
         all_metrics = []
         for case in self.benchmark_dataset:
-            # pyrefly: ignore [bad-argument-type]
-            m = self.evaluate_single_query(case["query"], case["expected_keywords"])
+            q_str = str(case["query"])
+            kw_list = case.get("expected_keywords")
+            expected_kw = list(kw_list) if isinstance(kw_list, list) else []
+            m = self.evaluate_single_query(q_str, expected_kw)
             all_metrics.append(m)
 
         summary = {

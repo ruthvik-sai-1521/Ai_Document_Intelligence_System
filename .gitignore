@@ -9,6 +9,7 @@
 /data/
 /embeddings/
 /logs/
+*.pkl
 
 # ===========================
 # Python

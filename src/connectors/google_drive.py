@@ -58,10 +58,13 @@ class GoogleDriveConnector(BaseConnector):
         self.service = build('drive', 'v3', credentials=self.creds)
         return self.service
 
-    def list_files(self, folder_id: str = None) -> List[Dict[str, Any]]:
+    def list_files(self, folder_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """List files and folders in Google Drive, optionally inside a specific folder."""
         if not self.service:
             self.authenticate()
+        if not self.service:
+            logger.error("Google Drive authentication failed. Cannot list files.")
+            return []
             
         # Select active files and filter by parent directory (default to root)
         query = "trashed = false"
@@ -85,6 +88,8 @@ class GoogleDriveConnector(BaseConnector):
         """
         if not self.service:
             self.authenticate()
+        if not self.service:
+            raise RuntimeError("Google Drive authentication failed.")
             
         # Google Workspace MIME types mapping to export formats
         export_mapping = {
@@ -120,7 +125,7 @@ class GoogleDriveConnector(BaseConnector):
             
         return fh.getvalue(), ext
 
-    def fetch_documents(self, selected_files: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def fetch_documents(self, selected_files: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
         """
         Download and package files for ingestion.
         Returns a list of dicts: {"raw_data": bytes, "source": str, "extension": str, "metadata": dict}

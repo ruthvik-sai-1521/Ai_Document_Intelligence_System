@@ -61,8 +61,7 @@ def parse_vtt_text(vtt_text: str) -> List[Dict[str, Any]]:
 
 
 class YouTubeConnector(BaseConnector):
-    # pyrefly: ignore [bad-function-definition]
-    def __init__(self, urls: List[str], languages: List[str] = None):
+    def __init__(self, urls: List[str], languages: Optional[List[str]] = None):
         """
         Args:
             urls:      List of YouTube video URLs or shorthand video IDs.
@@ -97,12 +96,13 @@ class YouTubeConnector(BaseConnector):
                     soup.find("meta", property="og:title") or
                     soup.find("meta", attrs={"name": "title"})
                 )
-                if meta_title and meta_title.get("content"):
-                    # pyrefly: ignore [missing-attribute]
-                    title = meta_title["content"].strip()
-                    if title.endswith(" - YouTube"):
-                        title = title[:-10].strip()
-                    return title
+                if meta_title:
+                    content_val = meta_title.get("content")
+                    if isinstance(content_val, str) and content_val.strip():
+                        title = content_val.strip()
+                        if title.endswith(" - YouTube"):
+                            title = title[:-10].strip()
+                        return title
                 
                 if soup.title and soup.title.string:
                     title = soup.title.string.strip()

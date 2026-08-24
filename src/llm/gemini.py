@@ -1,13 +1,8 @@
 from typing import Optional
 import requests
-try:
-    from src.llm.base import BaseLLM
-    from src.core.config import GEMINI_API_KEY
-    from src.core.logger import setup_logger
-except ImportError:
-    from llm.base import BaseLLM
-    from core.config import GEMINI_API_KEY
-    from core.logger import setup_logger
+from src.llm.base import BaseLLM
+from src.core.config import GEMINI_API_KEY
+from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 

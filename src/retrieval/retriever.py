@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 import numpy as np
 import re
 try:
@@ -268,7 +268,7 @@ class HybridRetriever:
         if use_reranker:
             try:
                 pairs = [[query, chunk["text"]] for chunk in unique_chunks]
-                raw_scores = self.cross_encoder.predict(pairs)
+                raw_scores = self.cross_encoder.predict(cast(List[Any], pairs))
                 for idx, score in enumerate(raw_scores):
                     # Sigmoid transformation converts raw logits into [0.0, 1.0] probability scale
                     prob = float(1.0 / (1.0 + np.exp(-float(score))))

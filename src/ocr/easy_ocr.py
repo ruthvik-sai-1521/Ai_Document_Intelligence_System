@@ -6,12 +6,8 @@ except ImportError:
 import numpy as np
 from PIL import Image
 from typing import List, Dict, Any, Optional
-try:
-    from src.ocr.base import BaseOCREngine
-    from src.core.logger import setup_logger
-except ImportError:
-    from ocr.base import BaseOCREngine
-    from core.logger import setup_logger
+from src.ocr.base import BaseOCREngine
+from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -36,6 +32,10 @@ class EasyOCREngine(BaseOCREngine):
         
     def extract_text_with_metadata(self, image_data: bytes) -> List[Dict[str, Any]]:
         """Run OCR on raw image bytes and return text blocks with coordinates and confidences."""
+        if self.reader is None:
+            logger.warning("EasyOCR reader is not initialized. Returning empty extraction.")
+            return []
+
         results = []
         try:
             image = Image.open(io.BytesIO(image_data))

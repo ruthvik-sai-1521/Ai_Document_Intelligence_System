@@ -2,12 +2,8 @@ import io
 import PyPDF2
 from typing import List, Dict, Any
 from datetime import datetime
-try:
-    from src.parsers.base import BaseParser
-    from src.core.logger import setup_logger
-except ImportError:
-    from parsers.base import BaseParser
-    from core.logger import setup_logger
+from src.parsers.base import BaseParser
+from src.core.logger import setup_logger
 
 try:
     import fitz
@@ -24,8 +20,8 @@ class PDFParser(BaseParser):
     def ocr_engine(self):
         if self._ocr_engine is None:
             # Lazily load OCR Engine to save memory/computation on digital-only PDF parses
-            from ocr.easy_ocr import EasyOCREngine
-            from core.config import OCR_LANGUAGES
+            from src.ocr.easy_ocr import EasyOCREngine
+            from src.core.config import OCR_LANGUAGES
             self._ocr_engine = EasyOCREngine(languages=OCR_LANGUAGES)
         return self._ocr_engine
 
@@ -57,6 +53,9 @@ class PDFParser(BaseParser):
                     })
                 else:
                     logger.info(f"Page {i + 1} in {source_name} appears to be scanned. Falling back to OCR...")
+                    if fitz is None:
+                        logger.warning(f"PyMuPDF (fitz) is not installed. Skipping OCR for page {i + 1}.")
+                        continue
                     if fitz_doc is None:
                         fitz_doc = fitz.open(stream=raw_data, filetype="pdf")
                     

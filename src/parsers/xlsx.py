@@ -6,18 +6,18 @@ try:
 except ImportError:
     openpyxl = None
 
-try:
-    from src.parsers.base import BaseParser
-    from src.core.logger import setup_logger
-except ImportError:
-    from parsers.base import BaseParser
-    from core.logger import setup_logger
+from src.parsers.base import BaseParser
+from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 class XlsxParser(BaseParser):
     def parse(self, raw_data: bytes, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Parse Excel workbook (.xlsx) bytes, converting rows into semantic chunks."""
+        if openpyxl is None:
+            logger.error("openpyxl package is not installed.")
+            return []
+
         source_name = metadata.get("source", "Unknown Excel File")
         timestamp = datetime.now().isoformat()
         pages = []

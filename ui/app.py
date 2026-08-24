@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT_DIR / "src"
@@ -272,11 +273,34 @@ if not st.session_state.messages:
 @st.cache_resource(show_spinner="🔄 Initializing AI models — first run downloads ~80MB...")
 def load_models():
     logger.info("Loading models...")
-    em = EmbeddingManager(model_name=EMBEDDING_MODEL_NAME, index_path=FAISS_INDEX_PATH, chunks_path=CHUNKS_PATH)
+    model_name_str = EMBEDDING_MODEL_NAME or "all-MiniLM-L6-v2"
+    em = EmbeddingManager(model_name=model_name_str, index_path=FAISS_INDEX_PATH, chunks_path=CHUNKS_PATH)
     llm = LLMGenerator()
-    return em, llm
+    ks = KeywordSearch(BM25_INDEX_PATH)
+    return em, llm, ks
 
-embedding_manager, llm = load_models()
+embedding_manager, llm, keyword_search = load_models()
+
+# ── STARTUP HEALTH CHECKS ──────────────────────
+from core.config import GROQ_API_KEY, GEMINI_API_KEY
+if not GROQ_API_KEY and not GEMINI_API_KEY:
+    st.error(
+        "🔴 **No LLM API key configured.** Queries will fail.\n\n"
+        "If deployed on Streamlit Cloud, go to **Settings → Secrets** and add:\n\n"
+        '```\nGROQ_API_KEY = "gsk_your_key_here"\n```'
+    )
+
+if not embedding_manager.chunks:
+    st.warning(
+        "⚠️ **Vector store is empty — no documents are indexed.**\n\n"
+        "Streamlit Cloud resets all data when the app restarts or sleeps. "
+        "Please re-upload your documents using the sidebar to start querying."
+    )
+
+def _safe_float(val: Any, default: float = 0.0) -> float:
+    if isinstance(val, (int, float)):
+        return float(val)
+    return default
 
 def stream_data(text: str):
     """Generator to simulate a typing effect for Streamlit."""
@@ -311,10 +335,8 @@ def highlight_text(text: str, query: str) -> str:
     pattern = re.compile(f"({'|'.join(words)})", re.IGNORECASE)
     return pattern.sub(r"<mark style='background:#fde047; color:black; border-radius:2px; padding:0 2px;'>\1</mark>", text)
 
-if "keyword_search" not in st.session_state:
-    st.session_state.keyword_search = KeywordSearch(BM25_INDEX_PATH)
 if "retriever" not in st.session_state:
-    st.session_state.retriever = HybridRetriever(embedding_manager, st.session_state.keyword_search)
+    st.session_state.retriever = HybridRetriever(embedding_manager, keyword_search)
 if "pipeline" not in st.session_state:
     st.session_state.pipeline = RAGPipeline(st.session_state.retriever, llm)
 
@@ -699,6 +721,7 @@ with st.sidebar:
                                 st.info("No Google Drive files indexed yet.")
                             else:
                                 updated_count = 0
+                                processor = DocumentProcessor()
                                 for d in drive_docs:
                                     f_id = d["drive_file_id"]
                                     old_v = d.get("version")
@@ -706,6 +729,8 @@ with st.sidebar:
                                     f_name = d["filename"]
                                     
                                     try:
+                                        if not connector.service:
+                                            continue
                                         cur_meta = connector.service.files().get(
                                             fileId=f_id,
                                             fields="id, name, mimeType, modifiedTime, version"
@@ -773,6 +798,7 @@ with st.sidebar:
                         if st.button("⚡ Ingest Selected Drive Files", use_container_width=True):
                             with st.spinner("Downloading and parsing Drive files..."):
                                 drive_docs = connector.fetch_documents(selected_drive_files)
+                                processor = DocumentProcessor()
                                 all_drive_chunks = []
                                 for doc in drive_docs:
                                     chunks = processor.process_raw_data(
@@ -836,10 +862,13 @@ with st.sidebar:
             if st.button("🔗 Load Schema Tables", use_container_width=True):
                 try:
                     connector = DatabaseConnector(db_type, db_config)
-                    tables = connector.connector.get_tables()
-                    st.session_state.db_connector_params = (db_type, db_config)
-                    st.session_state.db_tables = tables
-                    st.success(f"Connected! Found {len(tables)} tables.")
+                    if connector.connector is not None:
+                        tables = connector.connector.get_tables()
+                        st.session_state.db_connector_params = (db_type, db_config)
+                        st.session_state.db_tables = tables
+                        st.success(f"Connected! Found {len(tables)} tables.")
+                    else:
+                        st.error("Database connection failed.")
                 except Exception as e:
                     st.error(f"Connection failed: {e}")
                     
@@ -859,6 +888,7 @@ with st.sidebar:
                             connector = DatabaseConnector(db_type_cached, db_config_cached)
                             
                             db_docs = connector.fetch_documents(selected_tables)
+                            processor = DocumentProcessor()
                             all_db_chunks = []
                             for doc in db_docs:
                                 chunks = processor.process_raw_data(
@@ -1104,7 +1134,12 @@ with tab_chat:
                 )
 
                 start = time.time()
-                answer, meta = st.session_state.pipeline.run(query, user_id=st.session_state.user_id, session_id=st.session_state.session_id)
+                try:
+                    answer, meta = st.session_state.pipeline.run(query, user_id=st.session_state.user_id, session_id=st.session_state.session_id)
+                except Exception as e:
+                    logger.error(f"Pipeline execution error: {e}")
+                    answer = f"Error processing query: {str(e)}"
+                    meta = {"confidence": 0.0, "sources": [], "latency": time.time() - start}
                 elapsed = time.time() - start
 
                 # Replace typing indicator with streaming real answer
@@ -1120,8 +1155,9 @@ with tab_chat:
                 st.markdown(f'<div class="msg-meta">⏱ {elapsed:.2f}s &nbsp;·&nbsp; {ans_ts}</div>', unsafe_allow_html=True)
 
                 # Update Persistent Analytics
-                is_answered = "insufficient data" not in answer.lower()
+                is_answered = "insufficient data" not in answer.lower() and not answer.startswith("Error")
                 save_query_metrics(st.session_state.user_id, query, elapsed, conf, is_answered)
+
                 
                 # Refresh UI Analytics State
                 st.session_state.analytics = load_analytics_summary(st.session_state.user_id)
@@ -1398,22 +1434,23 @@ with tab_eval:
                 "Context Relevance", "Answer Relevance", "Citation Accuracy", "Safety (Non-Hallucinated)"
             ],
             "Score (%)": [
-                summary.get('retrieval_precision', 0)*100,
-                summary.get('recall', 0)*100,
-                summary.get('faithfulness', 0)*100,
-                summary.get('context_relevance', 0)*100,
-                summary.get('answer_relevance', 0)*100,
-                summary.get('citation_accuracy', 0)*100,
-                (1.0 - summary.get('hallucination_rate', 0))*100
+                _safe_float(summary.get('retrieval_precision')) * 100.0,
+                _safe_float(summary.get('recall')) * 100.0,
+                _safe_float(summary.get('faithfulness')) * 100.0,
+                _safe_float(summary.get('context_relevance')) * 100.0,
+                _safe_float(summary.get('answer_relevance')) * 100.0,
+                _safe_float(summary.get('citation_accuracy')) * 100.0,
+                (1.0 - _safe_float(summary.get('hallucination_rate'))) * 100.0
             ]
         })
         st.bar_chart(quality_df.set_index("Metric"))
 
     with vcol2:
         st.markdown("##### ⏱️ Latency & Execution Breakdown (ms)")
-        emb_ms = summary.get('embedding_time_ms', 15)
-        llm_ms = summary.get('llm_response_time', 0.4) * 1000
-        ret_ms = max(1.0, (summary.get('latency', 0.5) * 1000) - emb_ms - llm_ms)
+        emb_ms = _safe_float(summary.get('embedding_time_ms'), 15.0)
+        llm_ms = _safe_float(summary.get('llm_response_time'), 0.4) * 1000.0
+        tot_ms = _safe_float(summary.get('latency'), 0.5) * 1000.0
+        ret_ms = max(1.0, tot_ms - emb_ms - llm_ms)
         
         timing_df = pd.DataFrame({
             "Component": ["Embedding Compute", "Vector Retrieval & Re-ranking", "LLM Answer Generation"],
@@ -1421,9 +1458,10 @@ with tab_eval:
         })
         st.bar_chart(timing_df.set_index("Component"))
 
-    if summary.get("details"):
+    details_list = summary.get("details")
+    if isinstance(details_list, list) and details_list:
         with st.expander("📋 Detailed Benchmark Query Results"):
-            st.dataframe(pd.DataFrame(summary["details"]))
+            st.dataframe(pd.DataFrame(details_list))
 
 # ════════════════════════════════════════════
 # TAB 4 — ANALYTICS
