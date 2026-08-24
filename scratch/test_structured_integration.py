@@ -3,10 +3,13 @@ from pathlib import Path
 import os
 import sqlite3
 
-# Add project root to sys.path
-PROJECT_ROOT = Path(r"d:\Projects\Ai_Document_Intelligence_System")
+# Add project root and src folder to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_ROOT = PROJECT_ROOT / "src"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
 # Configure UTF-8 stdout
 if hasattr(sys.stdout, 'reconfigure'):

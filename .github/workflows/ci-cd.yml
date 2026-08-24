@@ -37,6 +37,7 @@ jobs:
 
       - name: Run Core Evaluation Benchmark Tests
         env:
+          PYTHONPATH: .
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           JWT_SECRET_KEY: "ci_cd_test_secret_key"
         run: |
