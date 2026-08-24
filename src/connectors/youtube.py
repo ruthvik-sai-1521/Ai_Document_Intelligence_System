@@ -113,12 +113,14 @@ class YouTubeConnector(BaseConnector):
             logger.warning(f"Could not fetch video title for {video_id}: {e}")
         return f"YouTube Video ({video_id})"
 
-    def _fetch_via_transcript_api(self, video_id: str) -> Optional[List[Dict[str, Any]]]:
-        """Tier 1: Try youtube_transcript_api package."""
+    def _fetch_via_transcript_api(self, video_id: str) -> tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+        """Tier 1: Try youtube_transcript_api package.
+        Returns (snippets, None) on success or (None, error_message) on failure.
+        """
         try:
             from youtube_transcript_api import YouTubeTranscriptApi
             logger.info(f"Tier 1: Trying youtube_transcript_api for {video_id}...")
-            
+
             # Support both instance and classmethod interfaces across versions
             raw_list = None
             if hasattr(YouTubeTranscriptApi, 'get_transcript'):
@@ -153,13 +155,17 @@ class YouTubeConnector(BaseConnector):
                         snippets.append({"text": text, "start": start, "duration": duration})
                 if snippets:
                     logger.info(f"Tier 1 succeeded for {video_id} ({len(snippets)} snippets).")
-                    return snippets
+                    return snippets, None
         except Exception as e:
-            logger.warning(f"Tier 1 youtube_transcript_api failed for {video_id}: {e}")
-        return None
+            err = f"{type(e).__name__}: {e}"
+            logger.warning(f"Tier 1 youtube_transcript_api failed for {video_id}: {err}")
+            return None, err
+        return None, "Tier 1: no snippets returned by youtube_transcript_api"
 
-    def _fetch_via_ytdlp(self, video_id: str) -> Optional[List[Dict[str, Any]]]:
-        """Tier 2: Try yt-dlp to extract subtitles or auto-generated captions (handles IP blocks)."""
+    def _fetch_via_ytdlp(self, video_id: str) -> tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+        """Tier 2: Try yt-dlp to extract subtitles or auto-generated captions (handles IP blocks).
+        Returns (snippets, None) on success or (None, error_message) on failure.
+        """
         try:
             import yt_dlp
             logger.info(f"Tier 2: Trying yt-dlp caption extraction for {video_id}...")
@@ -191,15 +197,17 @@ class YouTubeConnector(BaseConnector):
                         selected_track = list(subs.values())[0]
                         
                 if not selected_track:
-                    logger.warning(f"yt-dlp found no subtitle tracks for {video_id}.")
-                    return None
-                    
+                    msg = f"yt-dlp found no subtitle tracks for {video_id}."
+                    logger.warning(msg)
+                    return None, msg
+
                 # Prefer json3 format for precise timestamps
                 fmt = next((f for f in selected_track if f.get('ext') == 'json3'), selected_track[0])
                 resp = requests.get(fmt['url'], timeout=10)
                 if resp.status_code != 200:
-                    return None
-                    
+                    msg = f"yt-dlp subtitle download failed (HTTP {resp.status_code}) for {video_id}."
+                    return None, msg
+
                 snippets = []
                 if fmt.get('ext') == 'json3' or 'json3' in fmt.get('url', ''):
                     data = resp.json()
@@ -212,13 +220,15 @@ class YouTubeConnector(BaseConnector):
                                 snippets.append({"text": text, "start": start, "duration": duration})
                 else:
                     snippets = parse_vtt_text(resp.text)
-                    
+
                 if snippets:
                     logger.info(f"Tier 2 yt-dlp succeeded for {video_id} ({len(snippets)} snippets).")
-                    return snippets
+                    return snippets, None
         except Exception as e:
-            logger.warning(f"Tier 2 yt-dlp extraction failed for {video_id}: {e}")
-        return None
+            err = f"{type(e).__name__}: {e}"
+            logger.warning(f"Tier 2 yt-dlp extraction failed for {video_id}: {err}")
+            return None, err
+        return None, "Tier 2: no snippets returned by yt-dlp"
 
     def fetch_documents(self) -> List[Dict[str, Any]]:
         """
@@ -242,17 +252,24 @@ class YouTubeConnector(BaseConnector):
             logger.info(f"Processing YouTube Video ID: {video_id} ({canonical_url})")
             
             video_title = self.fetch_video_title(video_id)
-            
+
             # Tier 1: youtube_transcript_api
-            snippets = self._fetch_via_transcript_api(video_id)
-            
+            snippets, tier1_error = self._fetch_via_transcript_api(video_id)
+
             # Tier 2: yt-dlp fallback if Tier 1 returned nothing
+            tier2_error: Optional[str] = None
             if not snippets:
-                snippets = self._fetch_via_ytdlp(video_id)
-                
+                snippets, tier2_error = self._fetch_via_ytdlp(video_id)
+
             if not snippets:
-                logger.error(f"Failed all transcript retrieval tiers for YouTube video: {video_id}")
-                continue
+                # Surface the real error so it reaches the user via st.error() in the UI.
+                # Never silently discard transcript failures.
+                combined = ";".join(filter(None, [tier1_error, tier2_error]))
+                raise RuntimeError(
+                    f"Could not retrieve transcript for YouTube video '{video_title}' "
+                    f"({canonical_url}).\n"
+                    f"Reason: {combined or 'Unknown error in both transcript tiers.'}"
+                )
                 
             formatted_lines = []
             formatted_snippets = []

@@ -8,7 +8,10 @@ load_dotenv(override=True)
 # Base Paths (Updated for src/core structure)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = BASE_DIR / "data"
-INDEX_DIR = BASE_DIR / "embeddings"
+# INDEX_DIR is intentionally placed inside DATA_DIR so that on cloud deployments
+# (Render, Docker) the vector indexes survive restarts via the persistent disk
+# mounted at /app/data.  On localhost this resolves to <project>/data/embeddings/.
+INDEX_DIR = DATA_DIR / "embeddings"
 
 # Ensure directories exist
 DATA_DIR.mkdir(parents=True, exist_ok=True)
