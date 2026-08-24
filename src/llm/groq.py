@@ -9,14 +9,15 @@ logger = setup_logger(__name__)
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 FALLBACK_MODELS = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.6-27b",
     "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "mixtral-8x7b-32768",
-    "gemma2-9b-it"
+    "llama-3.1-8b-instant"
 ]
 
 class GroqLLM(BaseLLM):
-    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
+    def __init__(self, model_name: str = "openai/gpt-oss-120b"):
         logger.info(f"Initializing GroqLLM client: {model_name}")
         if not GROQ_API_KEY:
             logger.warning("GROQ_API_KEY is not set in environment or .env!")

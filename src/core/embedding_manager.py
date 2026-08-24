@@ -125,7 +125,8 @@ class EmbeddingManager:
                 chunk = self.chunks[idx].copy()
                 
                 # Filter by user_id if provided
-                if user_id and chunk.get('metadata', {}).get('user_id') != user_id:
+                chunk_user = chunk.get('metadata', {}).get('user_id')
+                if user_id and chunk_user is not None and chunk_user != user_id:
                     continue
                     
                 chunk['score'] = float(distances[0][i])

@@ -29,7 +29,7 @@ class LLMGenerator:
         elif provider == "gemini" or (not GROQ_API_KEY and GEMINI_API_KEY):
             self.llm_engine = GeminiLLM(model_name=model_name or "gemini-1.5-flash")
         else:
-            self.llm_engine = GroqLLM(model_name=model_name or "llama-3.3-70b-versatile")
+            self.llm_engine = GroqLLM(model_name=model_name) if model_name else GroqLLM()
 
     def generate_from_prompt(self, prompt: str) -> str:
         """
@@ -69,6 +69,9 @@ STANDALONE REWRITTEN QUERY:"""
             rewritten = self.generate_from_prompt(prompt).strip()
             if (rewritten.startswith('"') and rewritten.endswith('"')) or (rewritten.startswith("'") and rewritten.endswith("'")):
                 rewritten = rewritten[1:-1].strip()
+            if not rewritten or rewritten.lower().startswith("error"):
+                logger.warning(f"Query rewrite returned error or empty, falling back to raw query: '{query}'")
+                return query
             logger.info(f"Rewrote query: '{query}' -> '{rewritten}'")
             return rewritten
         except Exception as e:
