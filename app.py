@@ -1,5 +1,4 @@
-# Entrypoint wrapper for Streamlit Community Cloud
-import runpy
+# Entrypoint wrapper for Streamlit Community Cloud and direct python app.py execution
 import sys
 from pathlib import Path
 
@@ -13,4 +12,18 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 ui_app_path = ui_dir / "app.py"
-runpy.run_path(str(ui_app_path), run_name="__main__")
+
+# If invoked directly via `python app.py`, automatically boot the full Streamlit web server
+try:
+    from streamlit.runtime.scriptrunner import get_script_run_ctx
+    ctx = get_script_run_ctx()
+except Exception:
+    ctx = None
+
+if ctx is None and __name__ == "__main__":
+    import streamlit.web.cli as stcli
+    sys.argv = ["streamlit", "run", str(ui_app_path), *sys.argv[1:]]
+    sys.exit(stcli.main())
+else:
+    import runpy
+    runpy.run_path(str(ui_app_path), run_name="__main__")
