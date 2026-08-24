@@ -66,6 +66,11 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
       - name: Deploy to Render (Optional Webhook)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            curl -X POST "$RENDER_DEPLOY_HOOK"
+          else
+            echo "RENDER_DEPLOY_HOOK secret is not configured. Skipping Render deployment."
+          fi

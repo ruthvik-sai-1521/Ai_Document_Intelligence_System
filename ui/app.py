@@ -277,6 +277,31 @@ def load_models():
     em = EmbeddingManager(model_name=model_name_str, index_path=FAISS_INDEX_PATH, chunks_path=CHUNKS_PATH)
     llm = LLMGenerator()
     ks = KeywordSearch(BM25_INDEX_PATH)
+
+    # ── AUTOMATIC BOOTSTRAP SEEDING ──
+    # If the index is empty (e.g. fresh cloud deployment), seed default repository document
+    if em.index is None or em.index.ntotal == 0 or not em.chunks:
+        logger.info("[BOOTSTRAP] Starting...")
+        sample_pdf = ROOT_DIR / "SampleFile.pdf"
+        if sample_pdf.exists():
+            try:
+                logger.info(f"[BOOTSTRAP] Seed document found: {sample_pdf.name}")
+                processor = DocumentProcessor()
+                seed_chunks = processor.process_document(str(sample_pdf), user_id=None)
+                if seed_chunks:
+                    logger.info(f"[BOOTSTRAP] Created {len(seed_chunks)} chunks")
+                    em.add_chunks(seed_chunks, save=True)
+                    logger.info(f"[BOOTSTRAP] FAISS now contains {em.index.ntotal if em.index else len(seed_chunks)} vectors")
+                    ks.add_chunks(seed_chunks)
+                    logger.info("[BOOTSTRAP] BM25 initialized")
+                    logger.info("[BOOTSTRAP] Completed successfully")
+                else:
+                    logger.warning("[BOOTSTRAP] No chunks generated from seed document.")
+            except Exception as e:
+                logger.warning(f"[BOOTSTRAP] Failed to process seed document: {e}")
+        else:
+            logger.warning(f"[BOOTSTRAP] Seed document not found at {sample_pdf}. Continuing with empty vector store.")
+
     return em, llm, ks
 
 embedding_manager, llm, keyword_search = load_models()
